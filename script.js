@@ -1,5 +1,39 @@
 const SUPABASE_URL = 'https://melphsmbvknfcfqtnymo.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_aZDIn8B_gjv-x-IyWL8loQ_2Naml9ce';
+const TEAMS_WEBHOOK_URL = 'https://default83e72f726d1049628f019db9803f22.69.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9b1a9be2dbb84de39eeb4345bd505e57/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=iWVYoOlp0ExuJuioeLV1HTsFxfTh60zLsUbASiPVm1I';
+
+async function notificarTeams(titulo, fatos, descricao) {
+    try {
+        const r = await fetch(TEAMS_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                type: 'message',
+                attachments: [{
+                    contentType: 'application/vnd.microsoft.card.adaptive',
+                    content: {
+                        $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+                        type: 'AdaptiveCard',
+                        version: '1.2',
+                        body: [
+                            { type: 'TextBlock', text: titulo, weight: 'Bolder', size: 'Large', wrap: true },
+                            { type: 'FactSet', facts: fatos },
+                            ...(descricao ? [{ type: 'TextBlock', text: descricao, wrap: true, isSubtle: true, size: 'Small' }] : []),
+                        ],
+                        actions: [{
+                            type: 'Action.OpenUrl',
+                            title: 'Abrir no SGA',
+                            url: window.location.href,
+                        }],
+                    },
+                }],
+            }),
+        });
+        if (!r.ok) console.error('Teams webhook erro:', r.status, await r.text());
+    } catch (err) {
+        console.error('Teams webhook falha:', err);
+    }
+}
 
 let appSupabase = null;
 let dadosTabela = [];
@@ -416,6 +450,19 @@ async function salvarSolicitacao(e) {
         if (error) throw error;
         mostrarToast('Solicitação salva com sucesso!', 'success');
         toggleFormulario(); await carregarDados();
+        const s = data?.[0] || payload;
+        notificarTeams(
+            `📋 Nova Solicitação — ${s.protocolo || 'SGA'}`,
+            [
+                { title: 'Solicitante', value: s.solicitante_nome },
+                { title: 'Setor', value: s.solicitante_setor },
+                { title: 'Tipo de Material', value: s.tipo_material },
+                { title: 'Prazo Ideal', value: s.prazo_ideal || '—' },
+                { title: 'Prazo Limite', value: s.prazo_limite || '—' },
+                { title: 'Urgente', value: s.urgente ? '⚠️ Sim' : 'Não' },
+            ],
+            s.objetivo || null
+        );
     } catch (err) { console.error(err); mostrarToast('Erro ao salvar: ' + err.message, 'error'); }
     finally { btn.disabled = false; btn.innerHTML = oldHTML; }
 }
@@ -441,6 +488,19 @@ async function mudarStatus(id, novoStatus) {
         
         renderizarTabela(); atualizarMetricas();
         mostrarToast('Status atualizado!', 'success');
+        const item = dadosTabela.find(d => d.id === id);
+        const statusLabels = { na_fila: 'Na Fila', em_andamento: 'Em Andamento', ajustes: 'Ajuste Pendente', concluido: 'Finalizado', finalizado: 'Finalizado' };
+        if (item) {
+            notificarTeams(
+                `🔄 Status Atualizado — ${item.protocolo || id}`,
+                [
+                    { title: 'Solicitante', value: item.solicitante_nome },
+                    { title: 'Tipo de Material', value: item.tipo_material },
+                    { title: 'Novo Status', value: statusLabels[novoStatus] || novoStatus },
+                ],
+                null
+            );
+        }
     } catch (err) {
         console.error('❌ Erro mudarStatus:', err);
         mostrarToast('Erro ao atualizar: ' + err.message, 'error');
