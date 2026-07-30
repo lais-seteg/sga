@@ -2,6 +2,180 @@ const SUPABASE_URL = 'https://melphsmbvknfcfqtnymo.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_aZDIn8B_gjv-x-IyWL8loQ_2Naml9ce';
 const TEAMS_WEBHOOK_URL = 'https://default83e72f726d1049628f019db9803f22.69.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9b1a9be2dbb84de39eeb4345bd505e57/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=iWVYoOlp0ExuJuioeLV1HTsFxfTh60zLsUbASiPVm1I';
 
+// ========== INTEGRAÇÃO CLOCKIFY ==========
+const CLOCKIFY_API_KEY = 'ODUwOThjOTUtYmJlNS00Nzg5LWI3NmYtYzRjYjZlZGE3NDIw';
+const CLOCKIFY_BASE_URL = 'https://api.clockify.me/api/v1';
+let projetosClockify = [];
+
+const FORMATO_ICONS = {
+    instagram: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>',
+    whatsapp: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
+    email: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg>',
+    impressao: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>',
+    site: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>'
+};
+
+const ACTION_ICONS = {
+    ver: '<i class="fas fa-eye"></i>',
+    processando: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    ajuste: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+    finalizar: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    excluir: '<i class="fas fa-trash"></i>'
+};
+
+function statusBadgeHTML(item) {
+    const statusText = { 'na_fila':'Na Fila','em_andamento':'Em Andamento','ajustes':'Ajuste Pendente','concluido':'Finalizado','finalizado':'Finalizado' }[item.status] || 'Na Fila';
+    return `<span class="status-badge status-${item.status === 'concluido' ? 'finalizado' : item.status}">${statusText}</span>`;
+}
+
+function acoesHTMLFor(item) {
+    let html = `<div class="table-actions">
+        <button class="btn" data-action="ver" onclick="verDetalhes('${item.id}')" title="Ver Detalhes">${ACTION_ICONS.ver}</button>`;
+    if (usuarioLogado) {
+        const atual = item.status === 'finalizado' ? 'concluido' : item.status;
+        html += `<button class="btn ${atual === 'em_andamento' ? 'is-current' : ''}" data-action="processando" onclick="mudarStatus('${item.id}','em_andamento')" title="Marcar Em Andamento">${ACTION_ICONS.processando}</button>`;
+        html += `<button class="btn ${atual === 'ajustes' ? 'is-current' : ''}" data-action="ajuste" onclick="mudarStatus('${item.id}','ajustes')" title="Marcar Ajuste Pendente">${ACTION_ICONS.ajuste}</button>`;
+        html += `<button class="btn ${atual === 'concluido' ? 'is-current' : ''}" data-action="finalizar" onclick="mudarStatus('${item.id}','concluido')" title="Marcar Finalizado">${ACTION_ICONS.finalizar}</button>`;
+        html += `<button class="btn" data-action="excluir" onclick="excluirSolicitacao('${item.id}')" title="Excluir">${ACTION_ICONS.excluir}</button>`;
+    }
+    html += `</div>`;
+    return html;
+}
+
+function escapeHtml(str) {
+    if (typeof str !== 'string') return str;
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return str.replace(/[&<>"']/g, m => map[m]);
+}
+
+async function carregarProjetosClockify() {
+    try {
+        const wsRes = await fetch(`${CLOCKIFY_BASE_URL}/workspaces`, { headers: { 'X-Api-Key': CLOCKIFY_API_KEY } });
+        if (!wsRes.ok) throw new Error(`Erro workspace: ${wsRes.status}`);
+        const workspaces = await wsRes.json();
+        if (!workspaces.length) throw new Error('Nenhum workspace encontrado');
+        const wsId = workspaces[0].id;
+
+        const todos = [];
+        for (let page = 1; page < 100; page++) {
+            const res = await fetch(`${CLOCKIFY_BASE_URL}/workspaces/${wsId}/projects?page=${page}&page-size=200&archived=false`, { headers: { 'X-Api-Key': CLOCKIFY_API_KEY } });
+            if (!res.ok) throw new Error(`Erro projetos: ${res.status}`);
+            const lote = await res.json();
+            if (!lote.length) break;
+            todos.push(...lote);
+            if (lote.length < 200) break;
+        }
+
+        const ignorar = /^(CANCELADO|FINALIZADO)/i;
+        projetosClockify = todos
+            .filter(p => !ignorar.test((p.name || '').trim()))
+            .map(p => {
+                const m = (p.name || '').match(/^(#[^\s(]+)\s*(?:\((.+)\))?$/);
+                const code = m ? m[1] : p.name;
+                const nome = (m && m[2] ? m[2].trim() : null) || (p.clientName ? p.clientName.trim() : null) || p.name;
+                return { ...p, _code: code, _nome: nome };
+            });
+        console.log(`✅ ${projetosClockify.length} projetos Clockify carregados`);
+    } catch (e) {
+        console.error('❌ Erro ao carregar projetos Clockify:', e);
+    }
+}
+
+function normalizarTexto(str) {
+    return (str || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+function debounce(fn, ms) {
+    let timer;
+    return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+}
+
+function filtrarProjetosClockify(texto) {
+    const t = normalizarTexto(texto);
+    if (t.length < 2) return [];
+    return projetosClockify.filter(p =>
+        normalizarTexto(p._nome).includes(t) ||
+        normalizarTexto(p._code).includes(t) ||
+        normalizarTexto(p.clientName || '').includes(t) ||
+        normalizarTexto(p.name).includes(t)
+    ).slice(0, 12);
+}
+
+function mostrarSugestoesClockify(projetos, estado) {
+    const box = document.getElementById('clockifySuggestions');
+    if (!box) return;
+    if (estado === 'loading') {
+        box.innerHTML = `<div class="clockify-suggestion-msg">Buscando projetos...</div>`;
+    } else if (estado === 'empty') {
+        box.innerHTML = `<div class="clockify-suggestion-msg">Nenhum projeto encontrado</div>`;
+    } else {
+        box.innerHTML = projetos.map(p => {
+            const nome = escapeHtml(p._nome);
+            const code = escapeHtml(p._code);
+            return `<div class="clockify-suggestion-item" data-code="${code}">
+                <span class="suggestion-nome">${nome}</span>
+                <span class="suggestion-code">${code}</span>
+            </div>`;
+        }).join('');
+    }
+    box.classList.add('active');
+}
+
+function esconderSugestoesClockify() {
+    const box = document.getElementById('clockifySuggestions');
+    if (box) box.classList.remove('active');
+}
+
+function configurarClockifyAutocomplete() {
+    const input = document.getElementById('clienteInput');
+    const box = document.getElementById('clockifySuggestions');
+    if (!input || !box) return;
+
+    const buscarComDebounce = debounce((texto) => {
+        if (!texto.trim() || texto.trim().length < 2) { esconderSugestoesClockify(); return; }
+        if (!projetosClockify.length) { mostrarSugestoesClockify([], 'empty'); return; }
+        const resultados = filtrarProjetosClockify(texto);
+        mostrarSugestoesClockify(resultados, resultados.length ? 'list' : 'empty');
+    }, 400);
+
+    input.addEventListener('input', () => {
+        mostrarSugestoesClockify([], 'loading');
+        buscarComDebounce(input.value);
+    });
+
+    box.addEventListener('mousedown', (e) => {
+        const item = e.target.closest('.clockify-suggestion-item');
+        if (!item) return;
+        e.preventDefault();
+        input.value = item.dataset.code.replace(/^#/, '');
+        esconderSugestoesClockify();
+    });
+
+    input.addEventListener('blur', () => setTimeout(esconderSugestoesClockify, 200));
+    input.addEventListener('keydown', (e) => { if (e.key === 'Escape') esconderSugestoesClockify(); });
+}
+
+// ========== TEMA CLARO / ESCURO ==========
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const logoImg = document.getElementById('headerLogo');
+    if (logoImg) logoImg.src = theme === 'light' ? 'images/logo-preto.png' : 'images/logo-branco.png';
+    const slider = document.getElementById('themeSlider');
+    if (!slider) return;
+    if (theme === 'light') {
+        slider.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+    } else {
+        slider.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+    }
+}
+
+function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    localStorage.setItem('sga_theme', next);
+}
+
 async function notificarTeams(titulo, fatos, descricao) {
     try {
         const r = await fetch(TEAMS_WEBHOOK_URL, {
@@ -47,11 +221,12 @@ let totalPaginas = 1;
 let setorFiltro = '';
 
 document.addEventListener('DOMContentLoaded', () => {
-    requestAnimationFrame(() => {
-        const logo = document.getElementById('headerLogo');
-        if (logo) logo.src = 'images/logo-branco.png';
-    });
-    
+    applyTheme(localStorage.getItem('sga_theme') || 'dark');
+    document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
+
+    configurarClockifyAutocomplete();
+    carregarProjetosClockify();
+
     try {
         if (typeof window.supabase !== 'undefined') {
             appSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -172,6 +347,11 @@ async function logar() {
 function atualizarHeader(logado) {
     const actions = document.getElementById('headerActions');
     if (!actions) return;
+    const themeToggleHTML = `
+        <button class="theme-toggle" id="themeToggle" title="Alternar tema claro/escuro">
+            <div class="theme-toggle-slider" id="themeSlider"></div>
+        </button>
+    `;
     if (logado) {
         actions.innerHTML = `
             <span style="color: var(--green); font-size: 0.8rem; display: flex; align-items: center; gap: 5px;">
@@ -180,13 +360,29 @@ function atualizarHeader(logado) {
             <button class="btn btn-ghost" onclick="sair()">
                 <i class="fas fa-sign-out-alt"></i> Sair
             </button>
+            ${themeToggleHTML}
         `;
     } else {
         actions.innerHTML = `
             <button class="btn btn-ghost" onclick="abrirModalLogin()">
                 <i class="fas fa-shield-alt"></i> Gestor
             </button>
+            ${themeToggleHTML}
         `;
+    }
+    document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
+    applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+    atualizarVisibilidadeNovaSolicitacao();
+}
+
+function atualizarVisibilidadeNovaSolicitacao() {
+    const card = document.getElementById('cardNovaSolicitacao');
+    if (!card) return;
+    if (usuarioLogado) {
+        if (formAberto) toggleFormulario();
+        card.classList.add('hidden');
+    } else {
+        card.classList.remove('hidden');
     }
 }
 
@@ -257,13 +453,6 @@ function renderizarTabela() {
     
     itensPagina.forEach(item => {
         const tr = document.createElement('tr');
-        const statusText = {
-            'na_fila':'Na Fila',
-            'em_andamento':'Em Andamento',
-            'ajustes':'Ajuste Pendente',
-            'concluido':'Finalizado',
-            'finalizado':'Finalizado'
-        }[item.status] || 'Na Fila';
 
         let tipoMaterial = item.tipo_material_outro || item.tipo_material || '-';
         tipoMaterial = tipoMaterial.charAt(0).toUpperCase() + tipoMaterial.slice(1);
@@ -272,12 +461,11 @@ function renderizarTabela() {
         if (item.formatos && Array.isArray(item.formatos) && item.formatos.length > 0) {
             const fmts = item.formatos.filter(f => f && f !== 'outros');
             if (fmts.length <= 2) {
-                const icons = { 'instagram':'<i class="fab fa-instagram"></i>', 'whatsapp':'<i class="fab fa-whatsapp"></i>', 'email':'<i class="fas fa-envelope"></i>', 'impressao':'<i class="fas fa-print"></i>', 'site':'<i class="fas fa-globe"></i>' };
-                formatoHTML = fmts.map(f => `<span style="display:inline-flex;align-items:center;gap:3px;padding:2px 6px;background:rgba(100,116,139,0.2);border-radius:3px;font-size:0.68rem;margin:1px;color:#cbd5e1;">${icons[f]||''} ${f}</span>`).join('');
+                formatoHTML = fmts.map(f => `<span class="formato-badge">${FORMATO_ICONS[f]||''} ${f}</span>`).join('');
             } else {
-                formatoHTML = `<span style="display:inline-block;padding:2px 6px;background:rgba(100,116,139,0.2);border-radius:3px;font-size:0.68rem;color:#cbd5e1;">${fmts.length} canais</span>`;
+                formatoHTML = `<span class="formato-badge">${fmts.length} canais</span>`;
             }
-            if (item.formato_outros) formatoHTML += `<span style="display:inline-block;padding:2px 6px;background:rgba(245,158,11,0.2);border-radius:3px;font-size:0.68rem;margin:1px;color:#fbbf24;">${item.formato_outros}</span>`;
+            if (item.formato_outros) formatoHTML += `<span class="formato-badge-outros">${item.formato_outros}</span>`;
         }
 
         let prazoDisplay = '-';
@@ -286,33 +474,15 @@ function renderizarTabela() {
             if (item.urgente) prazoDisplay = `<span style="color:#e74c3c;font-weight:600;"><i class="fas fa-exclamation-circle"></i> ${prazoDisplay}</span>`;
         }
 
-        let statusHTML = '';
-        if (usuarioLogado) {
-            // ✅ CORREÇÃO: value="concluido" para respeitar a constraint do banco, mas label="Finalizado"
-            statusHTML = `<select class="form-control" style="padding:0.25rem 0.4rem;font-size:0.72rem;min-width:110px;" onchange="mudarStatus('${item.id}', this.value)">
-                <option value="na_fila" ${item.status==='na_fila'?'selected':''}>Na Fila</option>
-                <option value="em_andamento" ${item.status==='em_andamento'?'selected':''}>Em Andamento</option>
-                <option value="ajustes" ${item.status==='ajustes'?'selected':''}>Ajuste Pendente</option>
-                <option value="concluido" ${item.status==='concluido' || item.status==='finalizado'?'selected':''}>Finalizado</option>
-            </select>`;
-        } else {
-            statusHTML = `<span class="status-badge status-${item.status === 'concluido' ? 'finalizado' : item.status}">${statusText}</span>`;
-        }
-
-        let acoesHTML = `<div class="table-actions">
-            <button class="btn" data-action="ver" onclick="verDetalhes('${item.id}')" title="Ver"><i class="fas fa-eye"></i></button>`;
-        if (usuarioLogado) acoesHTML += `<button class="btn" data-action="excluir" onclick="excluirSolicitacao('${item.id}')" title="Excluir"><i class="fas fa-trash"></i></button>`;
-        acoesHTML += `</div>`;
-
         tr.innerHTML = `
-            <td><strong style="color:var(--blue-light);font-family:monospace;font-size:0.78rem;">${item.protocolo || item.id}</strong></td>
+            <td><strong class="protocolo-text">${item.protocolo || item.id}</strong></td>
             <td>${item.solicitante_nome || '-'}</td>
             <td>${item.solicitante_setor || '-'}</td>
             <td>${tipoMaterial}</td>
             <td>${formatoHTML}</td>
             <td>${prazoDisplay}</td>
-            <td>${statusHTML}</td>
-            <td>${acoesHTML}</td>
+            <td>${statusBadgeHTML(item)}</td>
+            <td>${acoesHTMLFor(item)}</td>
         `;
         fragment.appendChild(tr);
     });
@@ -387,14 +557,13 @@ function buscar() {
     const fragment = document.createDocumentFragment();
     filtrados.forEach(item => {
         const tr = document.createElement('tr');
-        const statusText = {'na_fila':'Na Fila','em_andamento':'Em Andamento','ajustes':'Ajuste Pendente','concluido':'Finalizado','finalizado':'Finalizado'}[item.status] || 'Na Fila';
         let tipo = (item.tipo_material_outro || item.tipo_material || '-').charAt(0).toUpperCase() + (item.tipo_material_outro || item.tipo_material || '-').slice(1);
         tr.innerHTML = `
-            <td><strong style="color:var(--blue-light);font-family:monospace;font-size:0.78rem;">${item.protocolo || item.id}</strong></td>
+            <td><strong class="protocolo-text">${item.protocolo || item.id}</strong></td>
             <td>${item.solicitante_nome || '-'}</td><td>${item.solicitante_setor || '-'}</td><td>${tipo}</td><td>-</td>
             <td>${item.prazo_ideal ? new Date(item.prazo_ideal).toLocaleDateString('pt-BR') : '-'}</td>
-            <td><span class="status-badge status-${item.status === 'concluido' ? 'finalizado' : item.status}">${statusText}</span></td>
-            <td><div class="table-actions"><button class="btn" data-action="ver" onclick="verDetalhes('${item.id}')" title="Ver"><i class="fas fa-eye"></i></button></div></td>
+            <td>${statusBadgeHTML(item)}</td>
+            <td>${acoesHTMLFor(item)}</td>
         `;
         fragment.appendChild(tr);
     });
@@ -525,7 +694,7 @@ function verDetalhes(id) {
     const d = item;
     const statusText = {'na_fila':'Na Fila','em_andamento':'Em Andamento','ajustes':'Ajuste Pendente','concluido':'Finalizado','finalizado':'Finalizado'}[d.status] || 'Na Fila';
     let html = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;padding:16px;background:linear-gradient(135deg,rgba(58,101,176,0.12),rgba(30,41,59,0.5));border-radius:var(--radius-lg);border:1px solid var(--border-color);">
-        <div><span style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;font-weight:600;">Protocolo</span><div style="font-size:1.2rem;font-weight:700;color:var(--blue-light);font-family:monospace;margin-top:3px;">${d.protocolo || d.id}</div></div>
+        <div><span style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;font-weight:600;">Protocolo</span><div class="protocolo-text" style="font-size:1.2rem;font-weight:700;margin-top:3px;">${d.protocolo || d.id}</div></div>
         <div><span style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;font-weight:600;">Status</span><div style="margin-top:6px;"><span class="status-badge status-${d.status === 'concluido' ? 'finalizado' : d.status}">${statusText}</span></div></div>
         <div><span style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;font-weight:600;">Data</span><div style="font-size:1rem;font-weight:600;margin-top:3px;">${d.criado_em ? new Date(d.criado_em).toLocaleDateString('pt-BR') : '-'}</div></div>
     </div>`;

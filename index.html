@@ -6,6 +6,8 @@
     <title>SGPG Seteg - Sistema de Solicitação de Peças Gráficas</title>
     <link rel="icon" type="image/png" href="images/favicon.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -23,6 +25,11 @@
             <div class="header-actions" id="headerActions">
                 <button class="btn btn-ghost" onclick="abrirModalLogin()">
                     <i class="fas fa-shield-alt"></i> Gestor
+                </button>
+                <button class="theme-toggle" id="themeToggle" title="Alternar tema claro/escuro">
+                    <div class="theme-toggle-slider" id="themeSlider">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </div>
                 </button>
             </div>
         </div>
@@ -72,7 +79,15 @@
                                     </div>
                                     <div class="form-group">
                                         <label class="form-label required">Setor / Área</label>
-                                        <input type="text" name="solicitante_setor" class="form-control" required placeholder="Ex: Marketing, RH">
+                                        <select name="solicitante_setor" class="form-control" required>
+                                            <option value="">Selecione...</option>
+                                            <option value="Financeiro">Financeiro</option>
+                                            <option value="Administrativo">Administrativo</option>
+                                            <option value="RH">RH</option>
+                                            <option value="Projetos">Projetos</option>
+                                            <option value="Inovação">Inovação</option>
+                                            <option value="PMO">PMO</option>
+                                        </select>
                                     </div>
                                     <div class="form-group">
                                         <label class="form-label required">E-mail</label>
@@ -80,9 +95,9 @@
                                     </div>
                                     <div class="form-group">
                                         <label class="form-label required">Código do Projeto | Cliente</label>
-                                        <div class="input-prefix-group">
-                                            <span class="input-prefix">#</span>
-                                            <input type="text" name="solicitante_cliente" id="clienteInput" class="form-control" required placeholder="Número do projeto">
+                                        <div class="clockify-input-wrapper">
+                                            <input type="text" name="solicitante_cliente" id="clienteInput" class="form-control" required placeholder="Digite o código ou nome do projeto..." autocomplete="off">
+                                            <div class="clockify-suggestions" id="clockifySuggestions"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -174,12 +189,12 @@
                                 <div class="form-group">
                                     <label class="form-label required">Canais de divulgação</label>
                                     <div class="checkbox-group">
-                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="instagram"> <i class="fab fa-instagram"></i> Instagram</label>
-                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="whatsapp"> <i class="fab fa-whatsapp"></i> WhatsApp</label>
-                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="email"> <i class="fas fa-envelope"></i> E-mail</label>
-                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="impressao"> <i class="fas fa-print"></i> Impressão</label>
-                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="site"> <i class="fas fa-globe"></i> Site</label>
-                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="outros" onchange="toggleField('outrosFormatoField', this.checked)"> <i class="fas fa-ellipsis-h"></i> Outros</label>
+                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="instagram"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg> Instagram</label>
+                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="whatsapp"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> WhatsApp</label>
+                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="email"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg> E-mail</label>
+                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="impressao"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Impressão</label>
+                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="site"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Site</label>
+                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="outros" onchange="toggleField('outrosFormatoField', this.checked)"> <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg> Outros</label>
                                     </div>
                                     <div class="conditional hidden" id="outrosFormatoField">
                                         <label class="form-label required">Especifique o formato</label>
@@ -255,7 +270,7 @@
                     </div>
                 </div>
 
-                <!-- HEADER DA TABELA -->
+                <!-- HEADER DA TABELA + FILTROS (TUDO NA MESMA LINHA) -->
                 <div class="table-section-header">
                     <h2>Todas as Solicitações</h2>
                     <div class="filter-pills" id="tableFilters">
@@ -265,19 +280,15 @@
                         <button class="filter-pill" onclick="filtrar('ajustes', this)">Ajuste Pendente</button>
                         <button class="filter-pill" onclick="filtrar('finalizado', this)">Finalizado</button>
                     </div>
-                </div>
-
-                <div class="table-filters-row">
                     <div class="filter-group">
                         <select class="form-control filter-select" id="filtroSetor" onchange="filtrarPorSetor()">
                             <option value="">Setor</option>
-                            <option value="marketing">Marketing</option>
-                            <option value="rh">RH</option>
-                            <option value="administrativo">Administrativo</option>
-                            <option value="pmo">PMO</option>
-                            <option value="inovacao">Inovação</option>
-                            <option value="projetos">Projetos</option>
-                            <option value="sst">SST</option>
+                            <option value="Financeiro">Financeiro</option>
+                            <option value="Administrativo">Administrativo</option>
+                            <option value="RH">RH</option>
+                            <option value="Projetos">Projetos</option>
+                            <option value="Inovação">Inovação</option>
+                            <option value="PMO">PMO</option>
                         </select>
                     </div>
                     <div class="search-group">
@@ -297,7 +308,7 @@
                                     <th>FORMATO</th>
                                     <th>PRAZO</th>
                                     <th>STATUS</th>
-                                    <th width="100">AÇÕES</th>
+                                    <th width="190">AÇÕES</th>
                                 </tr>
                             </thead>
                             <tbody id="tableBody">
@@ -338,24 +349,39 @@
             <!-- SIDEBAR - MÉTRICAS -->
             <aside class="kpi-sidebar" id="kpiSidebar">
                 <div class="kpi-grid">
-                    <div class="kpi-card">
-                        <span class="kpi-label">Total de Solicitações</span>
+                    <div class="kpi-card kpi-total">
+                        <div class="kpi-card-body">
+                            <span class="kpi-label">Total de Solicitações</span>
+                            <span class="kpi-desc">Todas as peças cadastradas</span>
+                        </div>
                         <span class="kpi-value" id="metricTotal">0</span>
                     </div>
                     <div class="kpi-card kpi-fila">
-                        <span class="kpi-label">Na Fila</span>
+                        <div class="kpi-card-body">
+                            <span class="kpi-label">Na Fila</span>
+                            <span class="kpi-desc">Aguardando atribuição</span>
+                        </div>
                         <span class="kpi-value" id="metricFila">0</span>
                     </div>
                     <div class="kpi-card kpi-processando">
-                        <span class="kpi-label">Processando</span>
+                        <div class="kpi-card-body">
+                            <span class="kpi-label">Processando</span>
+                            <span class="kpi-desc">Em produção pela equipe</span>
+                        </div>
                         <span class="kpi-value" id="metricProc">0</span>
                     </div>
                     <div class="kpi-card kpi-ajuste">
-                        <span class="kpi-label">Ajuste Pendente</span>
+                        <div class="kpi-card-body">
+                            <span class="kpi-label">Ajuste Pendente</span>
+                            <span class="kpi-desc">Solicitante pediu ajuste</span>
+                        </div>
                         <span class="kpi-value" id="metricAjuste">0</span>
                     </div>
                     <div class="kpi-card kpi-finalizado">
-                        <span class="kpi-label">Finalizado</span>
+                        <div class="kpi-card-body">
+                            <span class="kpi-label">Finalizado</span>
+                            <span class="kpi-desc">Concluído e entregue</span>
+                        </div>
                         <span class="kpi-value" id="metricDone">0</span>
                     </div>
                 </div>
