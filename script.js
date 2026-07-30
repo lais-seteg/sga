@@ -603,7 +603,7 @@ async function salvarSolicitacao(e) {
         
         const payload = {
             solicitante_nome: fd.get('solicitante_nome'), solicitante_setor: fd.get('solicitante_setor'),
-            solicitante_email: fd.get('solicitante_email'), solicitante_cliente: cliente || null,
+            solicitante_cliente: cliente || null,
             prazo_ideal: fd.get('prazo_ideal'), prazo_limite: fd.get('prazo_limite'),
             urgente: fd.get('urgente') === 'sim', urgencia_justificativa: fd.get('urgencia_justificativa') || null,
             tipo_material: fd.get('tipo_material'),
@@ -701,7 +701,7 @@ function verDetalhes(id) {
     const sec = (i,t,c) => `<div style="margin-bottom:12px;border:1px solid var(--border-color);border-radius:var(--radius-md);overflow:hidden;"><div style="padding:10px 14px;background:rgba(58,101,176,0.06);border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px;"><i class="fas fa-${i}" style="color:var(--blue);"></i><span style="font-weight:600;font-size:0.85rem;">${t}</span></div><div style="padding:12px;">${c}</div></div>`;
     const fld = (l,v) => !v ? `<div style="margin-bottom:10px;"><strong style="color:var(--text-muted);font-size:0.75rem;">${l}</strong><div style="color:var(--text-muted);font-style:italic;font-size:0.85rem;">Não informado</div></div>` : `<div style="margin-bottom:10px;"><strong style="color:var(--text-muted);font-size:0.75rem;">${l}</strong><div style="background:var(--bg-input);padding:8px 12px;border-radius:var(--radius-sm);font-size:0.85rem;word-break:break-word;white-space:pre-wrap;">${v}</div></div>`;
     
-    html += sec('user','1. Solicitante',`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${fld('Nome',d.solicitante_nome)}${fld('Setor',d.solicitante_setor)}${fld('E-mail',d.solicitante_email?`<a href="mailto:${d.solicitante_email}" style="color:var(--blue)">${d.solicitante_email}</a>`:null)}${fld('Cliente',d.solicitante_cliente?`#${d.solicitante_cliente}`:null)}</div>`);
+    html += sec('user','1. Solicitante',`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${fld('Nome',d.solicitante_nome)}${fld('Setor',d.solicitante_setor)}${fld('Cliente',d.solicitante_cliente?`#${d.solicitante_cliente}`:null)}</div>`);
     html += sec('calendar-alt','2. Prazo',`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${fld('Data Ideal',d.prazo_ideal?new Date(d.prazo_ideal).toLocaleDateString('pt-BR'):null)}${fld('Data Limite',d.prazo_limite?new Date(d.prazo_limite).toLocaleDateString('pt-BR'):null)}</div>${d.urgente?`<div style="background:rgba(231,76,60,0.1);padding:12px;border-radius:var(--radius-sm);border:1px solid rgba(231,76,60,0.3);margin-top:10px;"><p style="color:#e74c3c;font-weight:700;margin-bottom:4px;">⚠️ URGENTE</p><p style="margin:0;">${d.urgencia_justificativa||'-'}</p></div>`:''}`);
     html += sec('shapes','3. Tipo',`<p><strong>Tipo:</strong> <span style="background:var(--bg-input);padding:4px 10px;border-radius:var(--radius-sm);margin-left:6px;">${d.tipo_material_outro||d.tipo_material||'-'}</span></p>`);
     html += sec('bullseye','4. Objetivo',`<p style="background:var(--bg-input);padding:12px;border-radius:var(--radius-sm);white-space:pre-wrap;">${d.objetivo||'-'}</p>`);
