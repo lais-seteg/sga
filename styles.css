@@ -1300,7 +1300,7 @@ body.form-open .form-container {
 
 .modal-close:hover { color: #fff; background: var(--bg-card-hover); }
 
-.modal-body { padding: 1.1rem; overflow-y: auto; flex: 1; }
+.modal-body { padding: 1.1rem; overflow-y: auto; overflow-x: hidden; flex: 1; min-width: 0; }
 .modal-footer { padding: 0.8rem 1.2rem; border-top: 1px solid var(--border-color); display: flex; gap: 0.45rem; justify-content: flex-end; }
 
 .input-icon-wrapper { position: relative; }
