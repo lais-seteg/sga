@@ -1,55 +1,147 @@
+/* ══════════════════════════════════════════════════════════════════════
+   SGPG · SISTEMA DE SOLICITAÇÃO DE PEÇAS GRÁFICAS · SETEG
+   Paleta e layout alinhados ao Controle de Folgas
+   (0000-1-2026--controlefolgas), como no Controle de Estoque, no Setegcard,
+   no SGART e no SSI: fundo creme, barra azul-marinho fixa no topo, cartões
+   brancos e laranja Seteg como cor de ação.
+
+   Os nomes das variáveis continuam os mesmos (--bg-card, --text-primary,
+   --blue…), então nenhum seletor mudou de nome.
+
+   Duas coisas mudaram de forma:
+
+   1. O tema. Antes: `:root` era escuro e `[data-theme="light"]` tinha 43
+      regras de sobreposição clara. Agora `:root` é o tema claro (que passou
+      a ser o padrão) e `[data-theme="dark"]` é a variante.
+
+   2. As cores de status. Cada status tinha duas cores — uma viva para o
+      escuro e uma escura para o claro — repetidas em `.status-*`,
+      `.kpi-*` e `.legend-item`. Agora cada status é UM token (--st-*), e o
+      tema escuro só redefine os 4.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Satoshi, a fonte do Controle de Folgas ────────────────────────────
+   Servida pelo próprio site (pasta fonts/), no lugar da Inter que vinha do
+   Google Fonts. Some uma folha de estilo e uma fonte de dois hosts
+   externos do caminho crítico de renderização. */
+@font-face { font-family:'Satoshi'; src:url('fonts/Satoshi-300.woff2') format('woff2'); font-weight:300; font-style:normal; font-display:swap }
+@font-face { font-family:'Satoshi'; src:url('fonts/Satoshi-400.woff2') format('woff2'); font-weight:400; font-style:normal; font-display:swap }
+@font-face { font-family:'Satoshi'; src:url('fonts/Satoshi-500.woff2') format('woff2'); font-weight:500; font-style:normal; font-display:swap }
+@font-face { font-family:'Satoshi'; src:url('fonts/Satoshi-700.woff2') format('woff2'); font-weight:700; font-style:normal; font-display:swap }
+@font-face { font-family:'Satoshi'; src:url('fonts/Satoshi-900.woff2') format('woff2'); font-weight:900; font-style:normal; font-display:swap }
+
+/* ══════════════ TEMA CLARO (padrão) ══════════════ */
 :root {
-  --blue-dark: #0A2459;
-  --blue: #3A65B0;
-  --blue-light: #5A8DD0;
-  --orange: #FF8200;
+  /* Marca */
+  --navy: #071d49;
+  --navy-deep: #03102a;
+  --blue-dark: #071d49;
+  --blue: #3f6fd9;
+  --blue-light: #6b93e8;
+  --orange: #ff8200;
   --orange-hover: #e57400;
-  --yellow: #FBE122;
-  --green: #6CC24A;
-  --green-dark: #4a9e30;
-  --purple: #9b59b6;
-  --bg-primary: #0C1835;
-  --bg-secondary: #122045;
-  --bg-card: #162654;
-  --bg-card-hover: #1D3066;
-  --bg-input: #122045;
-  --border-color: #264175;
-  --border-light: #355696;
-  --text-primary: #E8ECF4;
-  --text-secondary: #8A95B0;
-  --text-muted: #7A85A0;
-  --radius-sm: 8px;
-  --radius-md: 12px;
+  --orange-soft: #ffb066;
+  --yellow: #f59e0b;
+  --green: #22c55e;
+  --green-dark: #15803d;
+  --purple: #7e57c2;
+
+  /* Variantes escuras das cores vivas, para uso como TEXTO sobre cartão
+     branco — os tons puros nascem para preencher área e perdem contraste
+     como letra. */
+  --blue-text: #2f5bbf;
+  --green-text: #15803d;
+  --orange-text: #b35900;
+  --red-text: #dc2626;
+  --purple-text: #6b3fb0;
+  --yellow-text: #b45309;
+
+  /* Cor de cada status — UMA por status, usada no badge, no valor do KPI, na
+     barrinha do KPI e no ponto da legenda. O escuro redefine só estas. */
+  --st-fila: #7a5400;
+  --st-processando: #b35900;
+  --st-ajuste: #1a5c8a;
+  --st-finalizado: #0d5025;
+
+  /* Superfícies */
+  --bg-primary: #f5f2ec;
+  --bg-secondary: #fbf8f1;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f7f3ea;
+  --bg-sunken: #efeae0;
+  --bg-input: #ffffff;
+  --border-color: #e6dfce;
+  --border-light: #c8bfaa;
+
+  /* Texto */
+  --text-primary: #07142e;
+  --text-secondary: #6e6553;
+  --text-muted: #9a8f78;
+  --text-on-navy: #ffffff;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
   --radius-lg: 16px;
+  --shadow-card: 0 1px 2px rgba(7,29,73,0.04), 0 4px 16px rgba(7,29,73,0.06);
+  --shadow-lg: 0 8px 32px rgba(7,29,73,0.14), 0 2px 8px rgba(7,29,73,0.08);
+  --shadow-pop: 0 4px 24px rgba(7,29,73,0.18);
+  --shadow-float: 0 1px 2px rgba(7,29,73,0.04), 0 4px 16px rgba(7,29,73,0.06);
+  --transition: all 0.2s ease;
+  --font: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Layout — barra do topo de 80px, a mesma altura do Controle de Folgas. */
+  --header-height: 80px;
+  --footer-height: 32px;
+  --page-padding-x: clamp(16px, 2vw, 36px);
+}
+
+/* ══════════════ TEMA ESCURO ══════════════
+   Mesma marca, superfícies em azul-marinho: o laranja, o azul e os tons de
+   status seguem na mesma família — só as caixas, o texto e a intensidade
+   dos status mudam. */
+[data-theme="dark"] {
+  --bg-primary: #03102a;
+  --bg-secondary: #061a40;
+  --bg-card: #0a2150;
+  --bg-card-hover: #0e2a63;
+  --bg-sunken: #061a40;
+  --bg-input: #061a40;
+  --border-color: #1b3468;
+  --border-light: #2c4d8f;
+  --text-primary: #e8ecf4;
+  --text-secondary: #9aa8c4;
+  --text-muted: #7d8aa6;
   --shadow-card: 0 4px 12px rgba(0,0,0,0.4);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
+  --shadow-pop: 0 8px 32px rgba(0,0,0,0.6);
   --shadow-float: 0 2px 8px rgba(0,0,0,0.25);
-  --transition: all 0.25s ease;
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --header-height: 60px;
-  --footer-height: 32px;
-}
 
-/* ========== TEMA CLARO ========== */
-[data-theme="light"] {
-  --bg-primary:     #EEF2F8;
-  --bg-secondary:   #DDE6F2;
-  --bg-card:        #FFFFFF;
-  --bg-card-hover:  #C8D8EE;
-  --bg-input:       #F5F7FA;
-  --border-color:   #B0C4DC;
-  --border-light:   #8AAACE;
-  --text-primary:   #0F1F3D;
-  --text-secondary: #2E4268;
-  --text-muted:     #4E6080;
-  --shadow-card:    0 4px 12px rgba(0,0,0,0.08);
-  --shadow-lg:      0 8px 32px rgba(0,0,0,0.12);
-  --shadow-float:   0 2px 8px rgba(0,0,0,0.06);
-}
+  /* No escuro os tons vivos voltam a ser a melhor cor de texto. */
+  --blue-text: var(--blue-light);
+  --green-text: var(--green);
+  --orange-text: var(--orange);
+  --red-text: #ff6b6b;
+  --purple-text: #c39bd3;
+  --yellow-text: var(--yellow);
 
+  --st-fila: #d4a017;
+  --st-processando: #ff8200;
+  --st-ajuste: #2e86c1;
+  --st-finalizado: #1e8449;
+}
+/* A barra do topo já é azul-marinho no claro; no escuro ela encostaria no
+   fundo, então sobe um tom. */
+[data-theme="dark"] .app-header { background: var(--bg-secondary); }
+[data-theme="dark"] .page-number.active { background: var(--blue); border-color: var(--blue); }
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.8); }
+
+/* ══════════════ RESET E BASE ══════════════ */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 html { font-size: 14px; }
 
+/* Sem imagem de fundo: o fundo é creme chapado. A bg-branco.png que servia
+   ao tema claro tinha 3,5 MB — e o claro passou a ser o padrão, então ela
+   seria baixada em toda primeira visita só para servir de textura. */
 body {
   font-family: var(--font);
   background: var(--bg-primary);
@@ -57,102 +149,19 @@ body {
   height: 100vh;
   overflow: hidden;
   line-height: 1.5;
-  background-image: url('images/bg-azul.png');
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
-  background-repeat: no-repeat;
+  -webkit-font-smoothing: antialiased;
 }
+button, input, select, textarea { font-family: inherit; }
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: rgba(6, 13, 31, 0.9);
-  z-index: -1;
-}
-
-[data-theme="light"] body {
-  background-image: url('images/bg-branco.png');
-}
-
-[data-theme="light"] body::before {
-  background: rgba(235, 242, 252, 0.82);
-}
-
-/* Títulos com cor branca fixa precisam se adaptar ao tema claro */
-[data-theme="light"] .brand h1,
-[data-theme="light"] .card-header h2,
-[data-theme="light"] .form-header h2,
-[data-theme="light"] .table-section-header h2,
-[data-theme="light"] .modal-header h2 {
-  color: var(--text-primary);
-}
-
-[data-theme="light"] .form-control {
-  background: var(--bg-input);
-  color: var(--text-primary);
-  border-color: var(--border-color);
-}
-
-[data-theme="light"] .btn-ghost:hover {
-  background: var(--bg-card-hover);
-  color: var(--text-primary);
-  border-color: var(--border-light);
-}
-
-[data-theme="light"] .modal-close:hover {
-  background: var(--bg-card-hover);
-  color: var(--text-primary);
-}
-
-[data-theme="light"] .filter-pill:hover {
-  background: var(--bg-card-hover);
-  color: var(--text-primary);
-}
-
-[data-theme="light"] .art-table th { color: var(--text-secondary); }
-[data-theme="light"] .art-table td { color: var(--text-primary); }
-[data-theme="light"] .art-table tbody tr:hover { background: var(--bg-card-hover); }
-
-[data-theme="light"] .btn-pagination,
-[data-theme="light"] .page-number { color: var(--text-primary); }
-
-[data-theme="light"] .kpi-card { background: #FFFFFF; }
-
-[data-theme="light"] .modal { background: rgba(255, 255, 255, 0.9); }
-[data-theme="light"] .modal-header { background: rgba(221, 230, 242, 0.9); }
-
-[data-theme="light"] .app-header { box-shadow: 0 2px 12px rgba(0,0,0,0.10); }
-
-[data-theme="light"] .status-na-fila     { color: #7A5200; border-color: rgba(122,82,0,0.45); }
-[data-theme="light"] .status-em_andamento,
-[data-theme="light"] .status-processando { color: #A84400; border-color: rgba(168,68,0,0.45); }
-[data-theme="light"] .status-ajuste      { color: #1A5C8A; border-color: rgba(26,92,138,0.45); }
-[data-theme="light"] .status-finalizado,
-[data-theme="light"] .status-concluido   { color: #0D5025; border-color: rgba(13,80,37,0.45); }
-
-[data-theme="light"] .kpi-total .kpi-value       { color: #1A5C8A; }
-[data-theme="light"] .kpi-fila .kpi-value        { color: #7A5200; }
-[data-theme="light"] .kpi-processando .kpi-value { color: #A84400; }
-[data-theme="light"] .kpi-ajuste .kpi-value      { color: #1A5C8A; }
-[data-theme="light"] .kpi-finalizado .kpi-value  { color: #0D5025; }
-
-[data-theme="light"] .clockify-suggestions {
-  background: #FFFFFF;
-  border-color: var(--border-color);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-}
-[data-theme="light"] .clockify-suggestion-item:hover { background: var(--bg-card-hover); }
-
-/* ========== BOTÃO TOGGLE DE TEMA ========== */
+/* ══════════════ TOGGLE DE TEMA ══════════════
+   Vive na barra azul-marinho, por isso a moldura é clara e translúcida. */
 .theme-toggle {
   position: relative;
-  width: 48px;
+  width: 46px;
   height: 26px;
-  background: var(--bg-card);
+  background: rgba(255,255,255,0.1);
   border-radius: 999px;
-  border: 1px solid var(--border-color);
+  border: 1px solid rgba(255,255,255,0.22);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -160,17 +169,12 @@ body::before {
   transition: var(--transition);
   flex-shrink: 0;
 }
-
-.theme-toggle:hover {
-  border-color: var(--blue-light);
-  box-shadow: 0 0 12px rgba(90,141,208,0.35);
-}
-
+.theme-toggle:hover { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255,130,0,0.18); }
 .theme-toggle-slider {
   position: absolute;
   width: 20px;
   height: 20px;
-  background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+  background: linear-gradient(135deg, var(--orange), var(--orange-hover));
   border-radius: 50%;
   transition: transform 0.3s ease;
   display: flex;
@@ -178,37 +182,53 @@ body::before {
   justify-content: center;
   color: #fff;
   font-size: 10px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
 }
+/* Claro é o padrão: pastilha à direita. No escuro volta à esquerda. */
+.theme-toggle-slider { transform: translateX(20px); }
+[data-theme="dark"] .theme-toggle-slider { transform: translateX(0); background: linear-gradient(135deg, var(--blue), var(--navy)); }
 
-[data-theme="light"] .theme-toggle {
-  background: #FFF8F0;
-  border-color: rgba(255,130,0,0.35);
+/* ── Perfil + Sair, depois do login ──────────────────
+   O SGA tem um acesso só e sem nome próprio (o código é compartilhado),
+   então não há "Bem-vindo(a), Nome" como nos outros: fica só o perfil, no
+   mesmo tipo miúdo em caixa alta laranja usado por eles. Sair é um botão de
+   ícone só, sem moldura. */
+.header-perfil {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.66rem; font-weight: 800; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--orange-soft); white-space: nowrap;
 }
-
-[data-theme="light"] .theme-toggle:hover {
-  border-color: var(--orange);
-  box-shadow: 0 0 12px rgba(255,130,0,0.3);
+.header-perfil svg { flex-shrink: 0; }
+.btn-icone-topo {
+  background: transparent; border: none; padding: 0.3rem; cursor: pointer;
+  color: rgba(255,255,255,0.8); border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center; line-height: 1;
+  transition: var(--transition); flex-shrink: 0;
 }
-
-[data-theme="light"] .theme-toggle-slider {
-  transform: translateX(22px);
-  background: linear-gradient(135deg, var(--orange), var(--orange-hover));
+.btn-icone-topo:hover { color: var(--orange); background: rgba(255,255,255,0.08); }
+/* O acesso "Gestor" mora na barra marinho: moldura clara e translúcida. */
+.header-actions .btn-ghost {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.88);
+  border: 1px solid rgba(255,255,255,0.2);
+  padding: 0.36rem 0.7rem;
+  font-size: 0.74rem;
 }
+.header-actions .btn-ghost:hover { background: rgba(255,255,255,0.14); color: #fff; border-color: rgba(255,255,255,0.4); }
 
-* { scrollbar-width: thin; scrollbar-color: var(--border-color) transparent; }
-::-webkit-scrollbar { width: 6px; height: 6px; }
+* { scrollbar-width: thin; scrollbar-color: var(--border-light) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--blue-light); }
+::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); background-clip: padding-box; }
 
 .hidden { display: none !important; }
 
 /* ========== HEADER ========== */
 .app-header {
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
-  padding: 0 1.5rem;
+  background: var(--navy);
+  border-bottom: none;
+  padding: 0 var(--page-padding-x);
   position: fixed;
   top: 0;
   left: 0;
@@ -217,7 +237,7 @@ body::before {
   height: var(--header-height);
   display: flex;
   align-items: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  box-shadow: none;
 }
 
 .header-inner {
@@ -225,12 +245,21 @@ body::before {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  gap: 1.5rem;
 }
 
-.brand { display: flex; align-items: center; gap: 0.75rem; }
-.logo img { height: 32px; width: auto; }
-.brand h1 { font-size: 1.05rem; font-weight: 700; color: #fff; white-space: nowrap; }
-.header-actions { display: flex; align-items: center; gap: 0.5rem; }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0; flex-shrink: 0; }
+.logo img { height: 38px; width: auto; max-width: 130px; object-fit: contain; }
+/* Nome do sistema ao lado da logo, com a barrinha laranja separando —
+   mesma assinatura do cabeçalho do Controle de Folgas. */
+.brand h1 {
+  display: flex; align-items: center; gap: 9px;
+  padding-left: 14px; border-left: 1px solid rgba(255,255,255,0.16);
+  font-size: 0.8rem; font-weight: 700; color: var(--text-on-navy);
+  white-space: nowrap; letter-spacing: 0.05em; text-transform: uppercase;
+}
+.brand h1::before { content: ''; width: 8px; height: 8px; border-radius: 2px; background: var(--orange); flex-shrink: 0; }
+.header-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
 
 /* ========== CONTEÚDO PRINCIPAL ========== */
 .app-content {
@@ -265,22 +294,22 @@ body.form-open .nova-solicitacao-card {
 }
 
 .card-header h2 {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #fff;
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
 .card-header h2 i {
-  color: var(--orange);
+  color: var(--orange-text);
 }
 
 /* ========== LAYOUT DASHBOARD ========== */
 .dashboard-layout {
   display: grid;
-  grid-template-columns: 1fr 260px;
+  grid-template-columns: minmax(0, 1fr) 220px;
   gap: 0.75rem;
   flex: 1;
   overflow: hidden;
@@ -360,9 +389,9 @@ body.form-open .form-container {
 }
 
 .form-header h2 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -588,8 +617,8 @@ body.form-open .form-container {
 
 .form-control:focus {
   outline: none;
-  border-color: var(--blue-light);
-  box-shadow: 0 0 0 2px rgba(90,141,208,0.25);
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px rgba(255,130,0,0.15);
 }
 
 .form-control::placeholder {
@@ -673,9 +702,9 @@ body.form-open .form-container {
 }
 
 .table-section-header h2 {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--text-primary);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -702,13 +731,13 @@ body.form-open .form-container {
 
 .filter-pill:hover {
   background: var(--bg-card-hover);
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .filter-pill.active {
-  background: var(--blue);
-  border-color: var(--blue);
-  color: #fff;
+  background: rgba(255,130,0,0.1);
+  border-color: var(--orange);
+  color: var(--orange-text);
 }
 
 /* ========== FILTROS E BUSCA (mesma linha do título) ========== */
@@ -756,29 +785,42 @@ body.form-open .form-container {
   z-index: 10;
 }
 
+/* Tudo numa linha só, e centralizado — cabeçalhos e células. Como as linhas
+   não quebram, todas ficam com a mesma altura. */
 .art-table th {
-  padding: 0.6rem 0.75rem;
-  text-align: left;
-  font-weight: 600;
+  padding: 0.65rem 0.6rem;
+  text-align: center;
+  font-weight: 800;
   color: var(--text-secondary);
   text-transform: uppercase;
-  font-size: 0.65rem;
-  letter-spacing: 0.04em;
+  font-size: 0.63rem;
+  letter-spacing: 0.05em;
   border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
 }
 
 .art-table td {
-  padding: 0.55rem 0.75rem;
+  padding: 0.6rem 0.6rem;
+  text-align: center;
   border-bottom: 1px solid var(--border-color);
   color: var(--text-primary);
   vertical-align: middle;
+  white-space: nowrap;
 }
 
-.art-table th:last-child,
-.art-table td:last-child {
-  text-align: center;
-}
+.art-table tbody tr:last-child td { border-bottom: none; }
+
+/* Solicitante, Setor, Tipo e Formato são texto livre ou listas longas: sem um
+   teto, a largura da tabela passaria a depender do maior valor do banco.
+   Entram com largura máxima e reticências, e o valor inteiro fica no
+   `title` — aparece ao passar o mouse. */
+.td-texto { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+
+/* O título "AÇÕES" fica centralizado como os outros; já os BOTÕES ficam
+   encostados à esquerda, porque cada linha tem uma quantidade diferente
+   deles e centralizar desalinharia o primeiro botão entre as linhas. */
+.art-table th:last-child { text-align: center; }
+.art-table td:last-child { text-align: left; }
 
 .art-table tbody tr {
   transition: background 0.15s;
@@ -820,33 +862,35 @@ body.form-open .form-container {
 }
 
 /* Na Fila - Amarelo */
-.status-na-fila {
-  background: rgba(251,225,34,0.12);
-  color: var(--yellow);
-  border-color: rgba(251,225,34,0.35);
+.status-na-fila,
+.status-na_fila {
+  background: color-mix(in srgb, var(--st-fila) 10%, transparent);
+  color: var(--st-fila);
+  border-color: color-mix(in srgb, var(--st-fila) 30%, transparent);
 }
 
 /* Em Andamento - Laranja */
 .status-em_andamento,
 .status-processando {
-  background: rgba(255,130,0,0.12);
-  color: var(--orange);
-  border-color: rgba(255,130,0,0.35);
+  background: color-mix(in srgb, var(--st-processando) 10%, transparent);
+  color: var(--st-processando);
+  border-color: color-mix(in srgb, var(--st-processando) 30%, transparent);
 }
 
 /* Ajuste Pendente - Azul */
-.status-ajuste {
-  background: rgba(90,141,208,0.12);
-  color: var(--blue-light);
-  border-color: rgba(90,141,208,0.35);
+.status-ajuste,
+.status-ajustes {
+  background: color-mix(in srgb, var(--st-ajuste) 10%, transparent);
+  color: var(--st-ajuste);
+  border-color: color-mix(in srgb, var(--st-ajuste) 30%, transparent);
 }
 
 /* Finalizado - Verde */
 .status-finalizado,
 .status-concluido {
-  background: rgba(108,194,74,0.12);
-  color: var(--green);
-  border-color: rgba(108,194,74,0.35);
+  background: color-mix(in srgb, var(--st-finalizado) 10%, transparent);
+  color: var(--st-finalizado);
+  border-color: color-mix(in srgb, var(--st-finalizado) 30%, transparent);
 }
 
 /* Badges de formato/canal (adaptam ao tema, sem cores fixas) */
@@ -876,15 +920,14 @@ body.form-open .form-container {
 
 /* Texto de protocolo (monoespaçado) */
 .protocolo-text {
-  color: var(--blue-light);
+  color: var(--blue-text);
   font-family: monospace;
   font-size: 0.78rem;
 }
 
-[data-theme="light"] .protocolo-text { color: #1A5C8A; }
 
 /* Ações da tabela */
-.table-actions { display: flex; gap: 0.3rem; flex-wrap: wrap; justify-content: center; }
+.table-actions { display: flex; align-items: center; gap: 0.3rem; flex-wrap: nowrap; justify-content: flex-start; }
 
 .table-actions .btn {
   width: 28px;
@@ -928,15 +971,15 @@ body.form-open .form-container {
 }
 
 .table-actions .btn[data-action="ajuste"] {
-  background: rgba(90,141,208,0.12);
-  color: var(--blue-light);
-  border-color: rgba(90,141,208,0.35);
+  background: rgba(63,111,217,0.08);
+  color: var(--blue-text);
+  border-color: rgba(63,111,217,0.28);
 }
 
 .table-actions .btn[data-action="finalizar"] {
-  background: rgba(108,194,74,0.12);
-  color: var(--green);
-  border-color: rgba(108,194,74,0.35);
+  background: rgba(34,197,94,0.09);
+  color: var(--green-text);
+  border-color: rgba(34,197,94,0.3);
 }
 
 .table-actions .btn[data-action="processando"]:hover,
@@ -960,12 +1003,9 @@ body.form-open .form-container {
   border-color: var(--green);
 }
 
-/* Contraste garantido no tema claro (texto de cor viva não some sobre fundo branco) */
-[data-theme="light"] .table-actions .btn[data-action="ver"] { color: #1A5F9A; border-color: rgba(26,95,154,0.4); }
-[data-theme="light"] .table-actions .btn[data-action="excluir"] { color: #A01A0A; border-color: rgba(160,26,10,0.4); }
-[data-theme="light"] .table-actions .btn[data-action="processando"] { color: #A84400; border-color: rgba(168,68,0,0.45); }
-[data-theme="light"] .table-actions .btn[data-action="ajuste"] { color: #1A5C8A; border-color: rgba(26,92,138,0.45); }
-[data-theme="light"] .table-actions .btn[data-action="finalizar"] { color: #0D5025; border-color: rgba(13,80,37,0.45); }
+/* As cinco exceções que existiam aqui para o tema claro saíram: a cor de
+   repouso de cada ação agora vem dos tokens --*-text, que já trocam de tom
+   entre o claro e o escuro. */
 
 /* ========== PAGINAÇÃO ========== */
 .pagination-container {
@@ -1121,16 +1161,16 @@ body.form-open .form-container {
   text-align: right;
 }
 
-.kpi-total       { border-left: 3px solid var(--blue-light); }
-.kpi-fila        { border-left: 3px solid var(--yellow); }
-.kpi-processando { border-left: 3px solid var(--orange); }
-.kpi-ajuste      { border-left: 3px solid var(--blue-light); }
-.kpi-finalizado  { border-left: 3px solid var(--green); }
+.kpi-total       { border-left: 3px solid var(--blue); }
+.kpi-fila        { border-left: 3px solid var(--st-fila); }
+.kpi-processando { border-left: 3px solid var(--st-processando); }
+.kpi-ajuste      { border-left: 3px solid var(--st-ajuste); }
+.kpi-finalizado  { border-left: 3px solid var(--st-finalizado); }
 
-.kpi-fila .kpi-value { color: var(--yellow); }
-.kpi-processando .kpi-value { color: var(--orange); }
-.kpi-ajuste .kpi-value { color: var(--blue-light); }
-.kpi-finalizado .kpi-value { color: var(--green); }
+.kpi-fila .kpi-value { color: var(--st-fila); }
+.kpi-processando .kpi-value { color: var(--st-processando); }
+.kpi-ajuste .kpi-value { color: var(--st-ajuste); }
+.kpi-finalizado .kpi-value { color: var(--st-finalizado); }
 
 /* ========== LEGENDA DE STATUS (compacta, sem espaço sobrando) ========== */
 .status-legend {
@@ -1227,8 +1267,8 @@ body.form-open .form-container {
 
 .btn-ghost:hover {
   background: var(--bg-card-hover);
-  color: #fff;
-  border-color: var(--border-light);
+  color: var(--text-primary);
+  border-color: var(--text-muted);
 }
 
 /* ========== MODAIS ========== */
@@ -1271,16 +1311,27 @@ body.form-open .form-container {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.8rem 1.2rem;
+  gap: 0.85rem;
+  padding: 1rem 1.3rem;
   border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary);
+  background: var(--bg-card);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  flex-shrink: 0;
 }
+/* Selo do assunto do diálogo, à esquerda do título — mesmo elemento do
+   CFModal do Controle de Folgas. */
+.modal-icon {
+  width: 38px; height: 38px; flex-shrink: 0; border-radius: var(--radius-md);
+  background: rgba(255,130,0,0.12); color: var(--orange);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-header-text { flex: 1; min-width: 0; }
+.modal-sub { font-size: 0.74rem; color: var(--text-muted); margin-top: 0.15rem; }
 
 .modal-header h2 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -1298,12 +1349,12 @@ body.form-open .form-container {
   line-height: 1;
 }
 
-.modal-close:hover { color: #fff; background: var(--bg-card-hover); }
+.modal-close:hover { color: var(--text-primary); background: var(--bg-sunken); }
 
 .modal-body { padding: 1.1rem; overflow-y: auto; overflow-x: hidden; flex: 1; min-width: 0; }
 .modal-footer { padding: 0.8rem 1.2rem; border-top: 1px solid var(--border-color); display: flex; gap: 0.45rem; justify-content: flex-end; }
 
-.input-icon-wrapper { position: relative; }
+.input-icon-wrapper { position: relative; display: flex; align-items: center; }
 .input-icon-wrapper input { padding-right: 2.2rem; }
 .input-icon-wrapper .fa-eye {
   position: absolute;
@@ -1314,12 +1365,30 @@ body.form-open .form-container {
   cursor: pointer;
   font-size: 0.9rem;
 }
+/* Variante com ícone à esquerda dentro da caixa, como o campo de senha da
+   tela de login do Controle de Folgas. */
+.input-icon-wrapper.has-icon input { padding-left: 2.5rem; height: 40px; }
+.input-icon-wrapper .input-icon-esq {
+  position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%);
+  color: var(--text-muted); pointer-events: none; transition: color 0.15s;
+}
+.input-icon-wrapper:focus-within .input-icon-esq { color: var(--orange); }
 
 .error-msg {
-  color: #ff6b6b;
-  font-size: 0.78rem;
-  margin-top: 0.5rem;
-  text-align: center;
+  display: flex; align-items: center; gap: 8px;
+  color: var(--red-text);
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-top: 0.7rem;
+  padding: 0.6rem 0.8rem;
+  background: rgba(239,68,68,0.06);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: var(--radius-md);
+  text-align: left;
+}
+.error-msg::before {
+  content: ''; width: 6px; height: 6px; flex-shrink: 0;
+  background: currentColor; border-radius: 50%;
 }
 
 /* ========== FOOTER ========== */
@@ -1346,12 +1415,14 @@ body.form-open .app-footer {
 }
 
 /* ========== FOCUS STATES ========== */
-.btn:focus, .form-control:focus, .filter-pill:focus,
+.btn:focus, .filter-pill:focus,
 .modal-close:focus, .btn-pagination:focus, .page-number:focus,
 .btn-voltar:focus {
-  outline: 2px solid var(--blue-light);
-  outline-offset: 1px;
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
 }
+/* O .form-control fica fora desta lista: ele já tem o próprio anel laranja
+   acima, e o outline por cima dele fazia dois anéis empilhados. */
 
 /* ========== RESPONSIVIDADE ========== */
 @media (max-width: 1100px) {

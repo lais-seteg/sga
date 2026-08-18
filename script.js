@@ -48,6 +48,22 @@ function escapeHtml(str) {
     return str.replace(/[&<>"']/g, m => map[m]);
 }
 
+// Os projetos do Clockify servem a UMA coisa: o autocomplete de "Código do
+// Projeto | Cliente", dentro do formulário. Antes eram buscados no
+// DOMContentLoaded — três requisições externas e ~200 KB que a maioria de
+// quem abre a página nunca usa.
+//
+// Agora a busca é sob demanda e acontece no máximo uma vez por sessão:
+// garantirProjetosClockify() guarda a promessa e devolve sempre a mesma.
+// Quem chama são o botão "Nova Solicitação" (para já estar pronto quando a
+// pessoa começar a digitar) e o próprio autocomplete (que espera por ela
+// antes de filtrar, exibindo "Buscando projetos..." nesse meio-tempo).
+let _clockifyPromise = null;
+function garantirProjetosClockify() {
+    if (!_clockifyPromise) _clockifyPromise = carregarProjetosClockify();
+    return _clockifyPromise;
+}
+
 async function carregarProjetosClockify() {
     try {
         const wsRes = await fetch(`${CLOCKIFY_BASE_URL}/workspaces`, { headers: { 'X-Api-Key': CLOCKIFY_API_KEY } });
@@ -131,10 +147,20 @@ function configurarClockifyAutocomplete() {
     const box = document.getElementById('clockifySuggestions');
     if (!input || !box) return;
 
-    const buscarComDebounce = debounce((texto) => {
+    const buscarComDebounce = debounce(async (texto) => {
         if (!texto.trim() || texto.trim().length < 2) { esconderSugestoesClockify(); return; }
-        if (!projetosClockify.length) { mostrarSugestoesClockify([], 'empty'); return; }
-        const resultados = filtrarProjetosClockify(texto);
+        // Se os projetos ainda não chegaram, mostra "Buscando projetos..." e
+        // espera — antes daqui saía direto "Nenhum projeto encontrado", que
+        // era mentira enquanto a lista estava a caminho.
+        if (!projetosClockify.length) {
+            mostrarSugestoesClockify([], 'loading');
+            await garantirProjetosClockify();
+        }
+        // Relê o campo em vez de confiar no texto capturado antes da espera:
+        // a pessoa pode ter continuado digitando.
+        const atual = input.value.trim();
+        if (atual.length < 2) { esconderSugestoesClockify(); return; }
+        const resultados = filtrarProjetosClockify(atual);
         mostrarSugestoesClockify(resultados, resultados.length ? 'list' : 'empty');
     }, 400);
 
@@ -158,8 +184,9 @@ function configurarClockifyAutocomplete() {
 // ========== TEMA CLARO / ESCURO ==========
 function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    const logoImg = document.getElementById('headerLogo');
-    if (logoImg) logoImg.src = theme === 'light' ? 'images/logo-preto.png' : 'images/logo-branco.png';
+    // A logo não troca mais com o tema: a barra do topo é azul-marinho nos
+    // dois, então a versão negativa (logo-seteg.svg) serve sempre. Some daqui
+    // a troca para logo-preto.png — e, com ela, um PNG de 36 KB.
     const slider = document.getElementById('themeSlider');
     if (!slider) return;
     if (theme === 'light') {
@@ -170,7 +197,7 @@ function applyTheme(theme) {
 }
 
 function toggleTheme() {
-    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
     const next = current === 'dark' ? 'light' : 'dark';
     applyTheme(next);
     localStorage.setItem('sga_theme', next);
@@ -221,11 +248,12 @@ let totalPaginas = 1;
 let setorFiltro = '';
 
 document.addEventListener('DOMContentLoaded', () => {
-    applyTheme(localStorage.getItem('sga_theme') || 'dark');
+    applyTheme(localStorage.getItem('sga_theme') || 'light'); // claro é o padrão
     document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
 
     configurarClockifyAutocomplete();
-    carregarProjetosClockify();
+    // Os projetos do Clockify não são mais buscados aqui: vêm sob demanda
+    // (ver garantirProjetosClockify), fora do carregamento inicial.
 
     try {
         if (typeof window.supabase !== 'undefined') {
@@ -251,6 +279,10 @@ function toggleFormulario() {
         }
         const body = document.querySelector('.form-body');
         if (body) body.scrollTop = 0;
+        // Aquece a lista de projetos do Clockify: quem abriu o formulário
+        // provavelmente vai digitar o projeto em seguida. Sem await — o
+        // formulário abre na hora, a busca corre por fora.
+        garantirProjetosClockify();
     } else {
         container.classList.remove('active');
         container.classList.add('hidden');
@@ -353,12 +385,16 @@ function atualizarHeader(logado) {
         </button>
     `;
     if (logado) {
+        // Padrão dos outros sistemas: o perfil em tipo miúdo, caixa alta e
+        // laranja, e Sair como botão de ícone só, sem moldura. (Aqui não há
+        // nome próprio para saudar: o código de acesso é compartilhado.)
         actions.innerHTML = `
-            <span style="color: var(--green); font-size: 0.8rem; display: flex; align-items: center; gap: 5px;">
-                <i class="fas fa-shield-alt"></i> <strong>Gestor</strong>
+            <span class="header-perfil">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Gestor
             </span>
-            <button class="btn btn-ghost" onclick="sair()">
-                <i class="fas fa-sign-out-alt"></i> Sair
+            <button class="btn-icone-topo" onclick="sair()" title="Sair">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             </button>
             ${themeToggleHTML}
         `;
@@ -371,7 +407,7 @@ function atualizarHeader(logado) {
         `;
     }
     document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
-    applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+    applyTheme(document.documentElement.getAttribute('data-theme') || 'light');
     atualizarVisibilidadeNovaSolicitacao();
 }
 
@@ -475,11 +511,11 @@ function renderizarTabela() {
         }
 
         tr.innerHTML = `
-            <td><strong class="protocolo-text">${item.protocolo || item.id}</strong></td>
-            <td>${item.solicitante_nome || '-'}</td>
-            <td>${item.solicitante_setor || '-'}</td>
-            <td>${tipoMaterial}</td>
-            <td>${formatoHTML}</td>
+            <td style="white-space:nowrap"><strong class="protocolo-text">${item.protocolo || item.id}</strong></td>
+            <td class="td-texto" title="${escapeHtml(item.solicitante_nome || '-')}">${item.solicitante_nome || '-'}</td>
+            <td class="td-texto" title="${escapeHtml(item.solicitante_setor || '-')}">${item.solicitante_setor || '-'}</td>
+            <td class="td-texto" title="${escapeHtml(String(tipoMaterial).replace(/<[^>]*>/g, ''))}">${tipoMaterial}</td>
+            <td class="td-texto">${formatoHTML}</td>
             <td>${prazoDisplay}</td>
             <td>${statusBadgeHTML(item)}</td>
             <td>${acoesHTMLFor(item)}</td>

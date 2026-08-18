@@ -5,11 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SGPG Seteg - Sistema de Solicitação de Peças Gráficas</title>
     <link rel="icon" type="image/png" href="images/favicon.png">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- A fonte (Satoshi) vem do próprio site, declarada em @font-face no
+         styles.css — saíram os dois links do Google Fonts que carregavam a
+         Inter de fonts.googleapis.com + fonts.gstatic.com. -->
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Font Awesome segue vindo do cdnjs: são 33 ícones em 45 lugares do
+         HTML e do script.js, e trocá-los é um trabalho à parte. É o último
+         host externo bloqueando a renderização aqui (~246 KB entre a folha
+         de estilo e a fonte). -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     
@@ -18,7 +22,7 @@
         <div class="header-inner">
             <div class="brand">
                 <div class="logo">
-                    <img src="images/logo-branco.png" alt="Seteg" id="headerLogo">
+                    <img src="images/logo-seteg.svg" alt="Seteg" id="headerLogo">
                 </div>
                 <h1>Sistema de Solicitação de Peças Gráficas</h1>
             </div>
@@ -392,18 +396,29 @@
         <p>Versão 1.0.0 • © Seteg – Soluções Geológicas e Ambientais • 2026</p>
     </footer>
 
-    <!-- MODAL LOGIN -->
+    <!-- MODAL LOGIN — o "acesso" no mesmo padrão de diálogo do Controle de
+         Folgas: selo do assunto no cabeçalho, subtítulo explicando, campo
+         com ícone de cadeado e foco laranja, aviso de erro em faixa clara. -->
     <div class="modal-overlay" id="modalLoginOverlay">
         <div class="modal modal-sm">
             <div class="modal-header">
-                <h2><i class="fas fa-shield-alt"></i> Acesso Gestor</h2>
+                <span class="modal-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </span>
+                <div class="modal-header-text">
+                    <h2>Acesso Gestor</h2>
+                    <p class="modal-sub">Informe o código de segurança interno.</p>
+                </div>
                 <button class="modal-close" onclick="fecharModalLogin()">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="margin-bottom: 1rem;">Digite o código de segurança interno:</p>
-                <div class="input-icon-wrapper">
-                    <input type="password" id="codigoAcesso" class="form-control" placeholder="••••••••" onkeypress="if(event.key==='Enter') logar()">
-                    <i class="fas fa-eye" id="toggleEye" onclick="toggleEye()"></i>
+                <div class="form-group">
+                    <label class="form-label required" for="codigoAcesso">Código de acesso</label>
+                    <div class="input-icon-wrapper has-icon">
+                        <svg class="input-icon-esq" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <input type="password" id="codigoAcesso" class="form-control" placeholder="Digite seu código" onkeypress="if(event.key==='Enter') logar()">
+                        <i class="fas fa-eye" id="toggleEye" onclick="toggleEye()"></i>
+                    </div>
                 </div>
                 <p class="error-msg hidden" id="loginErro">Código incorreto ou expirado.</p>
             </div>
@@ -428,6 +443,12 @@
         </div>
     </div>
 
+    <!-- Cliente do Supabase servido pelo próprio site (mesma versão 2.112.3
+         que vinha do jsDelivr), e não mais por CDN. Saiu do cabeçalho do
+         documento, onde bloqueava a renderização, e passou para o fim do
+         corpo, antes do script.js — que lê window.supabase no
+         DOMContentLoaded, então a ordem entre os dois importa. -->
+    <script src="vendor/supabase.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
