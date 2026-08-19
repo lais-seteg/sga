@@ -1,0 +1,45 @@
+# ===== Segredos e ambiente =====
+# Nada de credencial versionada. Se um dia as chaves saírem do script.js
+# para variáveis de ambiente (ver a seção "Segurança" do README), é aqui
+# que os arquivos delas ficam barrados.
+.env
+.env.*
+!.env.example
+config.local.js
+*.pem
+*.key
+secrets.json
+
+# ===== Vercel =====
+.vercel
+
+# ===== Node (caso o projeto ganhe build no futuro) =====
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+
+# ===== Ferramentas e editores =====
+# O settings.local.json guarda preferências de máquina, não do projeto.
+.claude/settings.local.json
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===== Sistema operacional =====
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# ===== Temporários e backups =====
+# ~$arquivo.docx é o bloqueio que o Word cria ao abrir os documentos de doc/.
+~$*
+*.bak
+*.tmp
+*.old
+*~
+_probe.html
