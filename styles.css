@@ -283,10 +283,6 @@ button, input, select, textarea { font-family: inherit; }
   margin: 0.75rem 1rem 0;
 }
 
-body.form-open .nova-solicitacao-card {
-  display: none !important;
-}
-
 .card-header {
   display: flex;
   align-items: center;
@@ -318,15 +314,6 @@ body.form-open .nova-solicitacao-card {
   padding-bottom: 0;
 }
 
-body.form-open .dashboard-layout {
-  grid-template-columns: 1fr;
-  padding-right: 1rem;
-}
-
-body.form-open .kpi-sidebar {
-  display: none !important;
-}
-
 .dashboard-table-area {
   display: flex;
   flex-direction: column;
@@ -337,115 +324,6 @@ body.form-open .kpi-sidebar {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
   position: relative;
-}
-
-body.form-open .dashboard-table-area {
-  border: none;
-  box-shadow: none;
-  background: transparent;
-}
-
-/* ========== FORMULÁRIO COM HEADER FIXO ========== */
-.form-container {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--bg-primary);
-  z-index: 50;
-  display: none;
-  flex-direction: column;
-  overflow: hidden;
-  border-radius: var(--radius-lg);
-}
-
-.form-container.active {
-  display: flex;
-  animation: formSlideIn 0.25s ease;
-}
-
-body.form-open .form-container {
-  border-radius: 0;
-}
-
-@keyframes formSlideIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Header fixo do formulário */
-.form-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.85rem 1.25rem;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  flex-shrink: 0;
-  z-index: 10;
-  position: sticky;
-  top: 0;
-}
-
-.form-header h2 {
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.form-header h2 i {
-  color: var(--orange);
-}
-
-/* Corpo scrollável do formulário */
-.form-body {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 1.25rem;
-  padding-bottom: 1rem;
-}
-
-/* Rodapé fixo do formulário */
-.form-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.75rem;
-  padding: 0.85rem 1.25rem;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  flex-shrink: 0;
-  z-index: 10;
-}
-
-/* Botão voltar (vermelho) */
-.btn-voltar {
-  background: rgba(231,76,60,0.15);
-  color: #ff6b6b;
-  border: 1px solid rgba(231,76,60,0.4);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.4rem 0.8rem;
-  border-radius: var(--radius-sm);
-  font-family: var(--font);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: var(--transition);
-  white-space: nowrap;
-  text-decoration: none;
-}
-
-.btn-voltar:hover {
-  background: #e74c3c;
-  color: #fff;
-  box-shadow: 0 0 12px rgba(231,76,60,0.4);
 }
 
 /* Input com prefixo (#) */
@@ -816,11 +694,19 @@ body.form-open .form-container {
    `title` — aparece ao passar o mouse. */
 .td-texto { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
 
-/* O título "AÇÕES" fica centralizado como os outros; já os BOTÕES ficam
-   encostados à esquerda, porque cada linha tem uma quantidade diferente
-   deles e centralizar desalinharia o primeiro botão entre as linhas. */
+/* Os botões de ação ficam centralizados sob o título "AÇÕES" — como todas
+   as linhas visíveis têm o mesmo conjunto de botões (um só para quem não
+   está logado, cinco para o gestor), centralizar não desalinha nada. */
 .art-table th:last-child { text-align: center; }
-.art-table td:last-child { text-align: left; }
+.art-table td:last-child { text-align: center; }
+
+/* SOLICITANTE (2ª) e FORMATO (5ª) são nomes próprios e listas de canais:
+   alinhados à esquerda, cabeçalho junto, para que a leitura de uma linha
+   para a outra comece sempre no mesmo ponto. */
+.art-table th:nth-child(2),
+.art-table td:nth-child(2),
+.art-table th:nth-child(5),
+.art-table td:nth-child(5) { text-align: left; }
 
 .art-table tbody tr {
   transition: background 0.15s;
@@ -927,7 +813,7 @@ body.form-open .form-container {
 
 
 /* Ações da tabela */
-.table-actions { display: flex; align-items: center; gap: 0.3rem; flex-wrap: nowrap; justify-content: flex-start; }
+.table-actions { display: flex; align-items: center; gap: 0.3rem; flex-wrap: nowrap; justify-content: center; }
 
 .table-actions .btn {
   width: 28px;
@@ -1301,6 +1187,9 @@ body.form-open .form-container {
 
 .modal-sm { max-width: 400px; }
 .modal-lg { max-width: 800px; }
+/* O formulário de nova solicitação é o diálogo mais alto do sistema: usa
+   quase toda a altura da janela para caber o máximo de seções por rolagem. */
+.modal-form { max-width: 780px; max-height: 92vh; }
 
 @keyframes modalIn {
   from { opacity: 0; transform: translateY(15px) scale(0.97); }
@@ -1410,14 +1299,9 @@ body.form-open .form-container {
   justify-content: center;
 }
 
-body.form-open .app-footer {
-  display: none !important;
-}
-
 /* ========== FOCUS STATES ========== */
 .btn:focus, .filter-pill:focus,
-.modal-close:focus, .btn-pagination:focus, .page-number:focus,
-.btn-voltar:focus {
+.modal-close:focus, .btn-pagination:focus, .page-number:focus {
   outline: 2px solid var(--orange);
   outline-offset: 2px;
 }
@@ -1470,8 +1354,8 @@ body.form-open .app-footer {
   .search-input { min-width: 100%; }
   
   .form-grid { grid-template-columns: 1fr; }
-  .form-body { padding: 0.85rem; }
-  .form-footer { padding: 0.75rem 0.85rem; flex-wrap: wrap; }
+  .modal-body { padding: 0.85rem; }
+  .modal-footer { padding: 0.75rem 0.85rem; flex-wrap: wrap; }
   
   .pagination-container { flex-direction: column; text-align: center; }
   .pagination-controls { justify-content: center; }
@@ -1483,6 +1367,6 @@ body.form-open .app-footer {
 }
 
 @media print {
-  .app-header, .form-container, .kpi-sidebar, .modal-overlay, .pagination-container { display: none !important; }
+  .app-header, .kpi-sidebar, .modal-overlay, .pagination-container { display: none !important; }
   body { background: #fff; color: #000; overflow: visible; }
 }

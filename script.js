@@ -265,32 +265,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// O formulário virou diálogo: "Nova Solicitação" abre o modal
+// #modalFormOverlay em vez do painel que cobria a tabela. O botão do card
+// segue com o mesmo rótulo — quem fecha o diálogo é o X, o Esc ou o clique
+// fora dele.
 function toggleFormulario() {
-    const container = document.getElementById('formContainer');
-    const btn = document.getElementById('btnNovaSolicitacao');
+    const overlay = document.getElementById('modalFormOverlay');
+    if (!overlay) return;
     formAberto = !formAberto;
     if (formAberto) {
-        container.classList.remove('hidden');
-        container.classList.add('active');
-        if (btn) {
-            btn.innerHTML = '<i class="fas fa-times"></i> Cancelar';
-            btn.classList.remove('btn-primary');
-            btn.classList.add('btn-ghost');
-        }
-        const body = document.querySelector('.form-body');
+        overlay.classList.add('active');
+        const body = document.getElementById('formBody');
         if (body) body.scrollTop = 0;
+        setTimeout(() => {
+            const primeiro = overlay.querySelector('input:not([type="radio"]), select, textarea');
+            if (primeiro) primeiro.focus();
+        }, 60);
         // Aquece a lista de projetos do Clockify: quem abriu o formulário
         // provavelmente vai digitar o projeto em seguida. Sem await — o
         // formulário abre na hora, a busca corre por fora.
         garantirProjetosClockify();
     } else {
-        container.classList.remove('active');
-        container.classList.add('hidden');
-        if (btn) {
-            btn.innerHTML = '<i class="fas fa-plus"></i> Nova Solicitação';
-            btn.classList.remove('btn-ghost');
-            btn.classList.add('btn-primary');
-        }
+        overlay.classList.remove('active');
         limparFormulario();
     }
 }
@@ -774,6 +770,7 @@ function mostrarToast(msg, tipo='success') {
 document.addEventListener('click', e => {
     if(e.target.id==='modalLoginOverlay') fecharModalLogin();
     if(e.target.id==='modalViewOverlay') e.target.classList.remove('active');
+    if(e.target.id==='modalFormOverlay' && formAberto) toggleFormulario();
 });
 document.addEventListener('keydown', e => {
     if(e.key==='Escape') { if(formAberto) toggleFormulario(); else { fecharModalLogin(); document.getElementById('modalViewOverlay').classList.remove('active'); } }

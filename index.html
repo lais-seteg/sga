@@ -58,218 +58,6 @@
             <!-- ÁREA DA TABELA -->
             <div class="dashboard-table-area">
                 
-                <!-- FORMULÁRIO (EXPANSÍVEL) -->
-                <div class="form-container hidden" id="formContainer">
-                    
-                    <!-- HEADER FIXO DO FORMULÁRIO -->
-                    <div class="form-header">
-                        <h2><i class="fas fa-folder-open"></i> Nova Solicitação de Peça Gráfica</h2>
-                        <button class="btn btn-voltar" onclick="toggleFormulario()">
-                            <i class="fas fa-arrow-left"></i> Voltar
-                        </button>
-                    </div>
-
-                    <!-- CONTEÚDO SCROLLÁVEL -->
-                    <div class="form-body">
-                        <form id="requestForm" onsubmit="salvarSolicitacao(event)">
-                            
-                            <!-- 1. SOLICITANTE -->
-                            <div class="form-section-block">
-                                <div class="form-subtitle"><i class="fas fa-user"></i> 1. Informações do Solicitante</div>
-                                <div class="form-grid">
-                                    <div class="form-group">
-                                        <label class="form-label required">Nome do Solicitante</label>
-                                        <input type="text" name="solicitante_nome" class="form-control" required placeholder="Nome completo">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label required">Setor / Área</label>
-                                        <select name="solicitante_setor" class="form-control" required>
-                                            <option value="">Selecione...</option>
-                                            <option value="Financeiro">Financeiro</option>
-                                            <option value="Administrativo">Administrativo</option>
-                                            <option value="RH">RH</option>
-                                            <option value="Projetos">Projetos</option>
-                                            <option value="Inovação">Inovação</option>
-                                            <option value="PMO">PMO</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label required">Código do Projeto | Cliente</label>
-                                        <div class="clockify-input-wrapper">
-                                            <input type="text" name="solicitante_cliente" id="clienteInput" class="form-control" required placeholder="Digite o código ou nome do projeto..." autocomplete="off">
-                                            <div class="clockify-suggestions" id="clockifySuggestions"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 2. PRAZO -->
-                            <div class="form-section-block">
-                                <div class="form-subtitle"><i class="fas fa-calendar-alt"></i> 2. Prazo</div>
-                                <div class="form-grid">
-                                    <div class="form-group">
-                                        <label class="form-label required">Data Ideal de Entrega</label>
-                                        <input type="date" name="prazo_ideal" class="form-control" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label required">Data Limite</label>
-                                        <input type="date" name="prazo_limite" class="form-control" required>
-                                    </div>
-                                    <div class="form-group full-width">
-                                        <label class="form-label required">Este material é urgente?</label>
-                                        <div class="radio-group">
-                                            <label><input type="radio" name="urgente" value="sim" onchange="toggleField('urgencyField', true)" required> Sim</label>
-                                            <label><input type="radio" name="urgente" value="nao" checked onchange="toggleField('urgencyField', false)"> Não</label>
-                                        </div>
-                                        <div class="conditional hidden" id="urgencyField">
-                                            <label class="form-label required">Justificativa da Urgência</label>
-                                            <textarea name="urgencia_justificativa" class="form-control" rows="2" placeholder="Explique o motivo da urgência..."></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 3. TIPO DE MATERIAL -->
-                            <div class="form-section-block">
-                                <div class="form-subtitle"><i class="fas fa-shapes"></i> 3. Tipo de Material</div>
-                                <div class="form-grid">
-                                    <div class="form-group full-width">
-                                        <label class="form-label required">Selecione o tipo</label>
-                                        <select name="tipo_material" id="tipoMaterial" class="form-control" required onchange="toggleField('outroTipoField', this.value === 'outro')">
-                                            <option value="">Selecione...</option>
-                                            <option value="comunicado">Comunicado Interno</option>
-                                            <option value="post">Post para Redes Sociais</option>
-                                            <option value="story">Story</option>
-                                            <option value="banner">Banner</option>
-                                            <option value="cartaz">Cartaz</option>
-                                            <option value="apresentacao">Apresentação</option>
-                                            <option value="cartilha">Cartilha</option>
-                                            <option value="convite">Convite</option>
-                                            <option value="wallpaper">Wallpaper</option>
-                                            <option value="outro">Outro</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group full-width conditional hidden" id="outroTipoField">
-                                        <label class="form-label required">Qual tipo?</label>
-                                        <input type="text" name="tipo_material_outro" class="form-control" placeholder="Descreva o tipo de material...">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 4. OBJETIVO -->
-                            <div class="form-section-block">
-                                <div class="form-subtitle"><i class="fas fa-bullseye"></i> 4. Objetivo</div>
-                                <div class="form-group">
-                                    <label class="form-label required">Qual o objetivo da peça?</label>
-                                    <textarea name="objetivo" class="form-control" required rows="2" placeholder="Ex: divulgar evento interno, comunicar mudança..."></textarea>
-                                </div>
-                            </div>
-
-                            <!-- 5. CONTEÚDO -->
-                            <div class="form-section-block">
-                                <div class="form-subtitle"><i class="fas fa-file-word"></i> 5. Conteúdo</div>
-                                <div class="form-group">
-                                    <label class="form-label required">Texto/Conteúdo da peça</label>
-                                    <textarea name="conteudo" class="form-control" required rows="4" placeholder="Cole o texto completo que será usado na peça..."></textarea>
-                                </div>
-                            </div>
-
-                            <!-- 6. INFORMAÇÕES OBRIGATÓRIAS -->
-                            <div class="form-section-block">
-                                <div class="form-subtitle"><i class="fas fa-exclamation-circle"></i> 6. Informações Obrigatórias</div>
-                                <div class="form-group">
-                                    <label class="form-label required">Elementos obrigatórios</label>
-                                    <textarea name="info_obrigatorias" class="form-control" required rows="2" placeholder="Logos, datas, hashtags, links obrigatórios..."></textarea>
-                                </div>
-                            </div>
-
-                            <!-- 7. FORMATO -->
-                            <div class="form-section-block">
-                                <div class="form-subtitle"><i class="fas fa-expand"></i> 7. Formato</div>
-                                <div class="form-group">
-                                    <label class="form-label required">Canais de divulgação</label>
-                                    <div class="checkbox-group">
-                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="instagram"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg> Instagram</label>
-                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="whatsapp"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> WhatsApp</label>
-                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="email"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg> E-mail</label>
-                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="impressao"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Impressão</label>
-                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="site"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Site</label>
-                                        <label class="check-btn"><input type="checkbox" name="formato[]" value="outros" onchange="toggleField('outrosFormatoField', this.checked)"> <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg> Outros</label>
-                                    </div>
-                                    <div class="conditional hidden" id="outrosFormatoField">
-                                        <label class="form-label required">Especifique o formato</label>
-                                        <input type="text" name="formato_outros" class="form-control" placeholder="Ex: TikTok, LinkedIn, YouTube, etc.">
-                                    </div>
-                                </div>
-                                <div class="form-grid" style="margin-top: 1rem;">
-                                    <div class="form-group">
-                                        <label class="form-label required">Dimensões</label>
-                                        <input type="text" name="dimensoes" class="form-control" required placeholder="Ex: A4, 1080x1080px">
-                                    </div>
-                                    <div class="form-group">
-                                        <label class="form-label required">Páginas</label>
-                                        <input type="number" name="paginas" class="form-control" min="1" required placeholder="Quantidade">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 8. IDENTIDADE VISUAL -->
-                            <div class="form-section-block">
-                                <div class="form-subtitle"><i class="fas fa-palette"></i> 8. Identidade Visual</div>
-                                <div class="form-group">
-                                    <label class="form-label required">Possui identidade visual?</label>
-                                    <div class="radio-group">
-                                        <label><input type="radio" name="identidade_visual" value="sim" onchange="toggleField('identityField', true)" required> Sim</label>
-                                        <label><input type="radio" name="identidade_visual" value="nao" checked onchange="toggleField('identityField', false)"> Não</label>
-                                    </div>
-                                    <div class="conditional hidden" id="identityField">
-                                        <label class="form-label required">Diretório/Link da Identidade</label>
-                                        <input type="text" name="identidade_diretorio" class="form-control" placeholder="Ex: \\servidor\arquivos\ ou link">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 9. REFERÊNCIAS -->
-                            <div class="form-section-block">
-                                <div class="form-subtitle"><i class="fas fa-images"></i> 9. Referências</div>
-                                <div class="form-group">
-                                    <label class="form-label required">Diretório das Referências</label>
-                                    <input type="text" name="referencias_diretorio" class="form-control" required placeholder="Ex: \\servidor\referencias\ ou link">
-                                </div>
-                            </div>
-
-                            <!-- 10. MATERIAIS -->
-                            <div class="form-section-block">
-                                <div class="form-subtitle"><i class="fas fa-folder-open"></i> 10. Materiais</div>
-                                <div class="form-group">
-                                    <label class="form-label required">Diretório dos Materiais</label>
-                                    <input type="text" name="materiais_diretorio" class="form-control" required placeholder="Link no drive para salvar os materiais solicitados">
-                                </div>
-                            </div>
-
-                            <!-- 11. OBSERVAÇÕES -->
-                            <div class="form-section-block">
-                                <div class="form-subtitle"><i class="fas fa-sticky-note"></i> 11. Observações</div>
-                                <div class="form-group">
-                                    <label class="form-label required">Observações finais</label>
-                                    <textarea name="observacoes" class="form-control" required rows="3" placeholder="Informações adicionais, instruções especiais..."></textarea>
-                                </div>
-                            </div>
-
-                        </form>
-                    </div>
-
-                    <!-- RODAPÉ FIXO COM BOTÕES -->
-                    <div class="form-footer">
-                        <button type="button" class="btn btn-ghost" onclick="limparFormulario()">
-                            <i class="fas fa-eraser"></i> Limpar
-                        </button>
-                        <button type="submit" class="btn btn-primary" id="btnSubmit" form="requestForm">
-                            <i class="fas fa-paper-plane"></i> Enviar Solicitação
-                        </button>
-                    </div>
-                </div>
-
                 <!-- HEADER DA TABELA + FILTROS (TUDO NA MESMA LINHA) -->
                 <div class="table-section-header">
                     <h2>Todas as Solicitações</h2>
@@ -395,6 +183,221 @@
     <footer class="app-footer">
         <p>Versão 1.0.0 • © Seteg – Soluções Geológicas e Ambientais • 2026</p>
     </footer>
+
+    <!-- MODAL NOVA SOLICITAÇÃO — o formulário deixou de ser um painel que
+         cobria a tabela e virou um diálogo, no mesmo padrão do modal de
+         acesso: selo do assunto no cabeçalho, corpo rolável e rodapé fixo
+         com as ações. -->
+    <div class="modal-overlay" id="modalFormOverlay">
+        <div class="modal modal-form">
+            <div class="modal-header">
+                <span class="modal-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                </span>
+                <div class="modal-header-text">
+                    <h2>Nova Solicitação de Peça Gráfica</h2>
+                    <p class="modal-sub">Preencha os campos abaixo para abrir o pedido.</p>
+                </div>
+                <button class="modal-close" onclick="toggleFormulario()">&times;</button>
+            </div>
+            <div class="modal-body" id="formBody">
+                <form id="requestForm" onsubmit="salvarSolicitacao(event)">
+                    
+                    <!-- 1. SOLICITANTE -->
+                    <div class="form-section-block">
+                        <div class="form-subtitle"><i class="fas fa-user"></i> 1. Informações do Solicitante</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label required">Nome do Solicitante</label>
+                                <input type="text" name="solicitante_nome" class="form-control" required placeholder="Nome completo">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label required">Setor / Área</label>
+                                <select name="solicitante_setor" class="form-control" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="Financeiro">Financeiro</option>
+                                    <option value="Administrativo">Administrativo</option>
+                                    <option value="RH">RH</option>
+                                    <option value="Projetos">Projetos</option>
+                                    <option value="Inovação">Inovação</option>
+                                    <option value="PMO">PMO</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label required">Código do Projeto | Cliente</label>
+                                <div class="clockify-input-wrapper">
+                                    <input type="text" name="solicitante_cliente" id="clienteInput" class="form-control" required placeholder="Digite o código ou nome do projeto..." autocomplete="off">
+                                    <div class="clockify-suggestions" id="clockifySuggestions"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. PRAZO -->
+                    <div class="form-section-block">
+                        <div class="form-subtitle"><i class="fas fa-calendar-alt"></i> 2. Prazo</div>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label required">Data Ideal de Entrega</label>
+                                <input type="date" name="prazo_ideal" class="form-control" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label required">Data Limite</label>
+                                <input type="date" name="prazo_limite" class="form-control" required>
+                            </div>
+                            <div class="form-group full-width">
+                                <label class="form-label required">Este material é urgente?</label>
+                                <div class="radio-group">
+                                    <label><input type="radio" name="urgente" value="sim" onchange="toggleField('urgencyField', true)" required> Sim</label>
+                                    <label><input type="radio" name="urgente" value="nao" checked onchange="toggleField('urgencyField', false)"> Não</label>
+                                </div>
+                                <div class="conditional hidden" id="urgencyField">
+                                    <label class="form-label required">Justificativa da Urgência</label>
+                                    <textarea name="urgencia_justificativa" class="form-control" rows="2" placeholder="Explique o motivo da urgência..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. TIPO DE MATERIAL -->
+                    <div class="form-section-block">
+                        <div class="form-subtitle"><i class="fas fa-shapes"></i> 3. Tipo de Material</div>
+                        <div class="form-grid">
+                            <div class="form-group full-width">
+                                <label class="form-label required">Selecione o tipo</label>
+                                <select name="tipo_material" id="tipoMaterial" class="form-control" required onchange="toggleField('outroTipoField', this.value === 'outro')">
+                                    <option value="">Selecione...</option>
+                                    <option value="comunicado">Comunicado Interno</option>
+                                    <option value="post">Post para Redes Sociais</option>
+                                    <option value="story">Story</option>
+                                    <option value="banner">Banner</option>
+                                    <option value="cartaz">Cartaz</option>
+                                    <option value="apresentacao">Apresentação</option>
+                                    <option value="cartilha">Cartilha</option>
+                                    <option value="convite">Convite</option>
+                                    <option value="wallpaper">Wallpaper</option>
+                                    <option value="outro">Outro</option>
+                                </select>
+                            </div>
+                            <div class="form-group full-width conditional hidden" id="outroTipoField">
+                                <label class="form-label required">Qual tipo?</label>
+                                <input type="text" name="tipo_material_outro" class="form-control" placeholder="Descreva o tipo de material...">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. OBJETIVO -->
+                    <div class="form-section-block">
+                        <div class="form-subtitle"><i class="fas fa-bullseye"></i> 4. Objetivo</div>
+                        <div class="form-group">
+                            <label class="form-label required">Qual o objetivo da peça?</label>
+                            <textarea name="objetivo" class="form-control" required rows="2" placeholder="Ex: divulgar evento interno, comunicar mudança..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 5. CONTEÚDO -->
+                    <div class="form-section-block">
+                        <div class="form-subtitle"><i class="fas fa-file-word"></i> 5. Conteúdo</div>
+                        <div class="form-group">
+                            <label class="form-label required">Texto/Conteúdo da peça</label>
+                            <textarea name="conteudo" class="form-control" required rows="4" placeholder="Cole o texto completo que será usado na peça..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 6. INFORMAÇÕES OBRIGATÓRIAS -->
+                    <div class="form-section-block">
+                        <div class="form-subtitle"><i class="fas fa-exclamation-circle"></i> 6. Informações Obrigatórias</div>
+                        <div class="form-group">
+                            <label class="form-label required">Elementos obrigatórios</label>
+                            <textarea name="info_obrigatorias" class="form-control" required rows="2" placeholder="Logos, datas, hashtags, links obrigatórios..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- 7. FORMATO -->
+                    <div class="form-section-block">
+                        <div class="form-subtitle"><i class="fas fa-expand"></i> 7. Formato</div>
+                        <div class="form-group">
+                            <label class="form-label required">Canais de divulgação</label>
+                            <div class="checkbox-group">
+                                <label class="check-btn"><input type="checkbox" name="formato[]" value="instagram"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg> Instagram</label>
+                                <label class="check-btn"><input type="checkbox" name="formato[]" value="whatsapp"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> WhatsApp</label>
+                                <label class="check-btn"><input type="checkbox" name="formato[]" value="email"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/></svg> E-mail</label>
+                                <label class="check-btn"><input type="checkbox" name="formato[]" value="impressao"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Impressão</label>
+                                <label class="check-btn"><input type="checkbox" name="formato[]" value="site"> <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg> Site</label>
+                                <label class="check-btn"><input type="checkbox" name="formato[]" value="outros" onchange="toggleField('outrosFormatoField', this.checked)"> <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg> Outros</label>
+                            </div>
+                            <div class="conditional hidden" id="outrosFormatoField">
+                                <label class="form-label required">Especifique o formato</label>
+                                <input type="text" name="formato_outros" class="form-control" placeholder="Ex: TikTok, LinkedIn, YouTube, etc.">
+                            </div>
+                        </div>
+                        <div class="form-grid" style="margin-top: 1rem;">
+                            <div class="form-group">
+                                <label class="form-label required">Dimensões</label>
+                                <input type="text" name="dimensoes" class="form-control" required placeholder="Ex: A4, 1080x1080px">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label required">Páginas</label>
+                                <input type="number" name="paginas" class="form-control" min="1" required placeholder="Quantidade">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 8. IDENTIDADE VISUAL -->
+                    <div class="form-section-block">
+                        <div class="form-subtitle"><i class="fas fa-palette"></i> 8. Identidade Visual</div>
+                        <div class="form-group">
+                            <label class="form-label required">Possui identidade visual?</label>
+                            <div class="radio-group">
+                                <label><input type="radio" name="identidade_visual" value="sim" onchange="toggleField('identityField', true)" required> Sim</label>
+                                <label><input type="radio" name="identidade_visual" value="nao" checked onchange="toggleField('identityField', false)"> Não</label>
+                            </div>
+                            <div class="conditional hidden" id="identityField">
+                                <label class="form-label required">Diretório/Link da Identidade</label>
+                                <input type="text" name="identidade_diretorio" class="form-control" placeholder="Ex: \\servidor\arquivos\ ou link">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 9. REFERÊNCIAS -->
+                    <div class="form-section-block">
+                        <div class="form-subtitle"><i class="fas fa-images"></i> 9. Referências</div>
+                        <div class="form-group">
+                            <label class="form-label required">Diretório das Referências</label>
+                            <input type="text" name="referencias_diretorio" class="form-control" required placeholder="Ex: \\servidor\referencias\ ou link">
+                        </div>
+                    </div>
+
+                    <!-- 10. MATERIAIS -->
+                    <div class="form-section-block">
+                        <div class="form-subtitle"><i class="fas fa-folder-open"></i> 10. Materiais</div>
+                        <div class="form-group">
+                            <label class="form-label required">Diretório dos Materiais</label>
+                            <input type="text" name="materiais_diretorio" class="form-control" required placeholder="Link no drive para salvar os materiais solicitados">
+                        </div>
+                    </div>
+
+                    <!-- 11. OBSERVAÇÕES -->
+                    <div class="form-section-block">
+                        <div class="form-subtitle"><i class="fas fa-sticky-note"></i> 11. Observações</div>
+                        <div class="form-group">
+                            <label class="form-label required">Observações finais</label>
+                            <textarea name="observacoes" class="form-control" required rows="3" placeholder="Informações adicionais, instruções especiais..."></textarea>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="limparFormulario()">
+                    <i class="fas fa-eraser"></i> Limpar
+                </button>
+                <button type="submit" class="btn btn-primary" id="btnSubmit" form="requestForm">
+                    <i class="fas fa-paper-plane"></i> Enviar Solicitação
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL LOGIN — o "acesso" no mesmo padrão de diálogo do Controle de
          Folgas: selo do assunto no cabeçalho, subtítulo explicando, campo
