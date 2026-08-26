@@ -1,7 +1,6 @@
 # ===== Segredos e ambiente =====
-# Nada de credencial versionada. Se um dia as chaves saírem do script.js
-# para variáveis de ambiente (ver a seção "Segurança" do README), é aqui
-# que os arquivos delas ficam barrados.
+# Nada de credencial versionada. As chaves do projeto ficam em
+# frontend/.env, que nasce a partir de frontend/.env.example.
 .env
 .env.*
 !.env.example
@@ -10,15 +9,23 @@ config.local.js
 *.key
 secrets.json
 
-# ===== Vercel =====
-.vercel
-
-# ===== Node (caso o projeto ganhe build no futuro) =====
+# ===== Node e build =====
 node_modules/
+dist/
+dist-ssr/
+*.local
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .npm
+
+# ===== Vercel =====
+.vercel
+
+# ===== Banco e backup =====
+# Nunca subir dump de banco nem cópia de segurança.
+bd/
+backup/
 
 # ===== Ferramentas e editores =====
 # O settings.local.json guarda preferências de máquina, não do projeto.

@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SGPG Seteg - Sistema de Solicitação de Peças Gráficas</title>
-    <link rel="icon" type="image/png" href="images/favicon.png">
+    <link rel="icon" type="image/png" href="/assets/images/favicon.png">
     <!-- A fonte (Satoshi) vem do próprio site, declarada em @font-face no
-         styles.css — saíram os dois links do Google Fonts que carregavam a
+         src/styles/style.css (que entra pelo bundle) — saíram os dois links do Google Fonts que carregavam a
          Inter de fonts.googleapis.com + fonts.gstatic.com. -->
-    <link rel="stylesheet" href="styles.css">
     <!-- Font Awesome segue vindo do cdnjs: são 33 ícones em 45 lugares do
          HTML e do script.js, e trocá-los é um trabalho à parte. É o último
          host externo bloqueando a renderização aqui (~246 KB entre a folha
@@ -22,7 +21,7 @@
         <div class="header-inner">
             <div class="brand">
                 <div class="logo">
-                    <img src="images/logo-seteg.svg" alt="Seteg" id="headerLogo">
+                    <img src="/assets/images/logo-seteg.svg" alt="Seteg" id="headerLogo">
                 </div>
                 <h1>Sistema de Solicitação de Peças Gráficas</h1>
             </div>
@@ -446,12 +445,10 @@
         </div>
     </div>
 
-    <!-- Cliente do Supabase servido pelo próprio site (mesma versão 2.112.3
-         que vinha do jsDelivr), e não mais por CDN. Saiu do cabeçalho do
-         documento, onde bloqueava a renderização, e passou para o fim do
-         corpo, antes do script.js — que lê window.supabase no
-         DOMContentLoaded, então a ordem entre os dois importa. -->
-    <script src="vendor/supabase.js"></script>
-    <script src="script.js"></script>
+    <!-- Entrada única do bundle: o main.js carrega o CSS e o app.js, e o
+         cliente do Supabase vem do pacote npm @supabase/supabase-js — não
+         há mais vendor/ nem CDN. O type="module" já adia a execução até o
+         documento estar montado, então a tag segue no fim do corpo. -->
+    <script type="module" src="/src/main.js"></script>
 </body>
 </html>

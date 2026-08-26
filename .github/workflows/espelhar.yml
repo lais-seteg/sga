@@ -1,0 +1,58 @@
+name: Espelhar para SetegCE
+
+# Mantém SetegCE/lm_portalseteg-sga igual a este repositório.
+#
+# ATENÇÃO: o destino é um ESPELHO. Nunca faça commit direto nele — a cada
+# push aqui, o conteúdo de lá é substituído por este. Todo o trabalho
+# acontece em lais-seteg/sga.
+#
+# Requisito: o secret MIRROR_PAT precisa existir neste repositório, com um
+# Personal Access Token (classic) de escopo `repo` que tenha permissão de
+# escrita em SetegCE/lm_portalseteg-sga.
+#   Settings > Secrets and variables > Actions > New repository secret
+#   Nome: MIRROR_PAT
+
+on:
+  push:
+    branches: ['**']
+    tags: ['**']
+  delete:
+  workflow_dispatch:
+
+concurrency:
+  group: espelhar-setegce
+  cancel-in-progress: false
+
+jobs:
+  espelhar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conferir se o token existe
+        run: |
+          if [ -z "${{ secrets.MIRROR_PAT }}" ]; then
+            echo "::error::O secret MIRROR_PAT não está configurado."
+            echo "Crie um PAT (classic) com escopo 'repo' e salve como"
+            echo "MIRROR_PAT em Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Clonar este repositório como espelho
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git clone --mirror \
+            "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" \
+            origem.git
+
+      - name: Enviar para o espelho na SetegCE
+        env:
+          MIRROR_PAT: ${{ secrets.MIRROR_PAT }}
+        run: |
+          cd origem.git
+          git push --mirror \
+            "https://x-access-token:${MIRROR_PAT}@github.com/SetegCE/lm_portalseteg-sga.git"
+
+      - name: Resumo
+        run: |
+          echo "Espelhado para SetegCE/lm_portalseteg-sga" >> $GITHUB_STEP_SUMMARY
+          echo "Commit de origem: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY

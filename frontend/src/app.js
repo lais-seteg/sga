@@ -1,11 +1,35 @@
-const SUPABASE_URL = 'https://melphsmbvknfcfqtnymo.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_aZDIn8B_gjv-x-IyWL8loQ_2Naml9ce';
-const TEAMS_WEBHOOK_URL = 'https://default83e72f726d1049628f019db9803f22.69.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/9b1a9be2dbb84de39eeb4345bd505e57/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=iWVYoOlp0ExuJuioeLV1HTsFxfTh60zLsUbASiPVm1I';
+/**
+ * SGA SETEG - Sistema de Solicitação de Peças Gráficas
+ * Ano: 2026
+ * Empresa: SETEG
+ *
+ * Camada de tela: header, cards, tabela, filtros, paginação, os três modais
+ * e o tema claro/escuro.
+ *
+ * Nada aqui fala com o Supabase, com o Clockify ou com o Teams direto —
+ * tudo passa pelos serviços em src/services e src/modules. As funções que o
+ * index.html chama por `onclick` são expostas em `window` no fim do arquivo:
+ * como o bundle é um módulo ES, elas não são globais por conta própria.
+ */
 
-// ========== INTEGRAÇÃO CLOCKIFY ==========
-const CLOCKIFY_API_KEY = 'ODUwOThjOTUtYmJlNS00Nzg5LWI3NmYtYzRjYjZlZGE3NDIw';
-const CLOCKIFY_BASE_URL = 'https://api.clockify.me/api/v1';
-let projetosClockify = [];
+import {
+  garantirProjetosClockify,
+  filtrarProjetosClockify,
+  listaProjetosClockify,
+} from "./services/clockifyService.js";
+import { notificarTeams } from "./services/teamsService.js";
+import {
+  listarSolicitacoes,
+  criarSolicitacao,
+  atualizarStatus,
+  excluirSolicitacao as excluirSolicitacaoNoBanco,
+} from "./modules/solicitacoes/solicitacoesService.js";
+import {
+  autenticarUsuario,
+  encerrarSessao,
+  limparSessaoResidual,
+} from "./modules/usuarios/usuariosService.js";
+import { STATUS, getStatusLabel, getStatusClass, isFinalizado } from "./constants/status.js";
 
 const FORMATO_ICONS = {
     instagram: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>',
@@ -24,18 +48,17 @@ const ACTION_ICONS = {
 };
 
 function statusBadgeHTML(item) {
-    const statusText = { 'na_fila':'Na Fila','em_andamento':'Em Andamento','ajustes':'Ajuste Pendente','concluido':'Finalizado','finalizado':'Finalizado' }[item.status] || 'Na Fila';
-    return `<span class="status-badge status-${item.status === 'concluido' ? 'finalizado' : item.status}">${statusText}</span>`;
+    return `<span class="status-badge ${getStatusClass(item.status)}">${getStatusLabel(item.status)}</span>`;
 }
 
 function acoesHTMLFor(item) {
     let html = `<div class="table-actions">
         <button class="btn" data-action="ver" onclick="verDetalhes('${item.id}')" title="Ver Detalhes">${ACTION_ICONS.ver}</button>`;
     if (usuarioLogado) {
-        const atual = item.status === 'finalizado' ? 'concluido' : item.status;
-        html += `<button class="btn ${atual === 'em_andamento' ? 'is-current' : ''}" data-action="processando" onclick="mudarStatus('${item.id}','em_andamento')" title="Marcar Em Andamento">${ACTION_ICONS.processando}</button>`;
-        html += `<button class="btn ${atual === 'ajustes' ? 'is-current' : ''}" data-action="ajuste" onclick="mudarStatus('${item.id}','ajustes')" title="Marcar Ajuste Pendente">${ACTION_ICONS.ajuste}</button>`;
-        html += `<button class="btn ${atual === 'concluido' ? 'is-current' : ''}" data-action="finalizar" onclick="mudarStatus('${item.id}','concluido')" title="Marcar Finalizado">${ACTION_ICONS.finalizar}</button>`;
+        const atual = isFinalizado(item.status) ? STATUS.CONCLUIDO : item.status;
+        html += `<button class="btn ${atual === STATUS.EM_ANDAMENTO ? 'is-current' : ''}" data-action="processando" onclick="mudarStatus('${item.id}','${STATUS.EM_ANDAMENTO}')" title="Marcar Em Andamento">${ACTION_ICONS.processando}</button>`;
+        html += `<button class="btn ${atual === STATUS.AJUSTES ? 'is-current' : ''}" data-action="ajuste" onclick="mudarStatus('${item.id}','${STATUS.AJUSTES}')" title="Marcar Ajuste Pendente">${ACTION_ICONS.ajuste}</button>`;
+        html += `<button class="btn ${atual === STATUS.CONCLUIDO ? 'is-current' : ''}" data-action="finalizar" onclick="mudarStatus('${item.id}','${STATUS.CONCLUIDO}')" title="Marcar Finalizado">${ACTION_ICONS.finalizar}</button>`;
         html += `<button class="btn" data-action="excluir" onclick="excluirSolicitacao('${item.id}')" title="Excluir">${ACTION_ICONS.excluir}</button>`;
     }
     html += `</div>`;
@@ -48,75 +71,12 @@ function escapeHtml(str) {
     return str.replace(/[&<>"']/g, m => map[m]);
 }
 
-// Os projetos do Clockify servem a UMA coisa: o autocomplete de "Código do
-// Projeto | Cliente", dentro do formulário. Antes eram buscados no
-// DOMContentLoaded — três requisições externas e ~200 KB que a maioria de
-// quem abre a página nunca usa.
-//
-// Agora a busca é sob demanda e acontece no máximo uma vez por sessão:
-// garantirProjetosClockify() guarda a promessa e devolve sempre a mesma.
-// Quem chama são o botão "Nova Solicitação" (para já estar pronto quando a
-// pessoa começar a digitar) e o próprio autocomplete (que espera por ela
-// antes de filtrar, exibindo "Buscando projetos..." nesse meio-tempo).
-let _clockifyPromise = null;
-function garantirProjetosClockify() {
-    if (!_clockifyPromise) _clockifyPromise = carregarProjetosClockify();
-    return _clockifyPromise;
-}
-
-async function carregarProjetosClockify() {
-    try {
-        const wsRes = await fetch(`${CLOCKIFY_BASE_URL}/workspaces`, { headers: { 'X-Api-Key': CLOCKIFY_API_KEY } });
-        if (!wsRes.ok) throw new Error(`Erro workspace: ${wsRes.status}`);
-        const workspaces = await wsRes.json();
-        if (!workspaces.length) throw new Error('Nenhum workspace encontrado');
-        const wsId = workspaces[0].id;
-
-        const todos = [];
-        for (let page = 1; page < 100; page++) {
-            const res = await fetch(`${CLOCKIFY_BASE_URL}/workspaces/${wsId}/projects?page=${page}&page-size=200&archived=false`, { headers: { 'X-Api-Key': CLOCKIFY_API_KEY } });
-            if (!res.ok) throw new Error(`Erro projetos: ${res.status}`);
-            const lote = await res.json();
-            if (!lote.length) break;
-            todos.push(...lote);
-            if (lote.length < 200) break;
-        }
-
-        const ignorar = /^(CANCELADO|FINALIZADO)/i;
-        projetosClockify = todos
-            .filter(p => !ignorar.test((p.name || '').trim()))
-            .map(p => {
-                const m = (p.name || '').match(/^(#[^\s(]+)\s*(?:\((.+)\))?$/);
-                const code = m ? m[1] : p.name;
-                const nome = (m && m[2] ? m[2].trim() : null) || (p.clientName ? p.clientName.trim() : null) || p.name;
-                return { ...p, _code: code, _nome: nome };
-            });
-        console.log(`✅ ${projetosClockify.length} projetos Clockify carregados`);
-    } catch (e) {
-        console.error('❌ Erro ao carregar projetos Clockify:', e);
-    }
-}
-
-function normalizarTexto(str) {
-    return (str || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-}
-
 function debounce(fn, ms) {
     let timer;
     return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
 }
 
-function filtrarProjetosClockify(texto) {
-    const t = normalizarTexto(texto);
-    if (t.length < 2) return [];
-    return projetosClockify.filter(p =>
-        normalizarTexto(p._nome).includes(t) ||
-        normalizarTexto(p._code).includes(t) ||
-        normalizarTexto(p.clientName || '').includes(t) ||
-        normalizarTexto(p.name).includes(t)
-    ).slice(0, 12);
-}
-
+// ========== AUTOCOMPLETE DO CLOCKIFY (TELA) ==========
 function mostrarSugestoesClockify(projetos, estado) {
     const box = document.getElementById('clockifySuggestions');
     if (!box) return;
@@ -152,7 +112,7 @@ function configurarClockifyAutocomplete() {
         // Se os projetos ainda não chegaram, mostra "Buscando projetos..." e
         // espera — antes daqui saía direto "Nenhum projeto encontrado", que
         // era mentira enquanto a lista estava a caminho.
-        if (!projetosClockify.length) {
+        if (!listaProjetosClockify().length) {
             mostrarSugestoesClockify([], 'loading');
             await garantirProjetosClockify();
         }
@@ -184,9 +144,8 @@ function configurarClockifyAutocomplete() {
 // ========== TEMA CLARO / ESCURO ==========
 function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    // A logo não troca mais com o tema: a barra do topo é azul-marinho nos
-    // dois, então a versão negativa (logo-seteg.svg) serve sempre. Some daqui
-    // a troca para logo-preto.png — e, com ela, um PNG de 36 KB.
+    // A logo não troca com o tema: a barra do topo é azul-marinho nos dois,
+    // então a versão negativa (logo-seteg.svg) serve sempre.
     const slider = document.getElementById('themeSlider');
     if (!slider) return;
     if (theme === 'light') {
@@ -203,42 +162,10 @@ function toggleTheme() {
     localStorage.setItem('sga_theme', next);
 }
 
-async function notificarTeams(titulo, fatos, descricao) {
-    try {
-        const r = await fetch(TEAMS_WEBHOOK_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                type: 'message',
-                attachments: [{
-                    contentType: 'application/vnd.microsoft.card.adaptive',
-                    content: {
-                        $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
-                        type: 'AdaptiveCard',
-                        version: '1.2',
-                        body: [
-                            { type: 'TextBlock', text: titulo, weight: 'Bolder', size: 'Large', wrap: true },
-                            { type: 'FactSet', facts: fatos },
-                            ...(descricao ? [{ type: 'TextBlock', text: descricao, wrap: true, isSubtle: true, size: 'Small' }] : []),
-                        ],
-                        actions: [{
-                            type: 'Action.OpenUrl',
-                            title: 'Abrir no SGA',
-                            url: window.location.href,
-                        }],
-                    },
-                }],
-            }),
-        });
-        if (!r.ok) console.error('Teams webhook erro:', r.status, await r.text());
-    } catch (err) {
-        console.error('Teams webhook falha:', err);
-    }
-}
-
-let appSupabase = null;
+// ========== ESTADO ==========
 let dadosTabela = [];
 let usuarioLogado = false;
+let usuarioNome = '';
 let filtroAtual = 'todos';
 let formAberto = false;
 let carregandoDados = false;
@@ -251,24 +178,19 @@ document.addEventListener('DOMContentLoaded', () => {
     applyTheme(localStorage.getItem('sga_theme') || 'light'); // claro é o padrão
     document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
 
+    // A página abre sempre deslogada: derruba token que tenha sobrado de uma
+    // visita anterior, para não deixar sessão viva sem ninguém logado na tela.
+    limparSessaoResidual();
+
     configurarClockifyAutocomplete();
-    // Os projetos do Clockify não são mais buscados aqui: vêm sob demanda
+    // Os projetos do Clockify não são buscados aqui: vêm sob demanda
     // (ver garantirProjetosClockify), fora do carregamento inicial.
 
-    try {
-        if (typeof window.supabase !== 'undefined') {
-            appSupabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            carregarDados();
-        }
-    } catch (e) {
-        console.error('Erro init:', e);
-    }
+    carregarDados();
 });
 
-// O formulário virou diálogo: "Nova Solicitação" abre o modal
-// #modalFormOverlay em vez do painel que cobria a tabela. O botão do card
-// segue com o mesmo rótulo — quem fecha o diálogo é o X, o Esc ou o clique
-// fora dele.
+// O formulário é um diálogo: "Nova Solicitação" abre o modal
+// #modalFormOverlay. Quem fecha é o X, o Esc ou o clique fora dele.
 function toggleFormulario() {
     const overlay = document.getElementById('modalFormOverlay');
     if (!overlay) return;
@@ -323,6 +245,7 @@ function limparFormulario() {
     if (clienteInput) clienteInput.value = '';
 }
 
+// ========== ACESSO ==========
 function abrirModalLogin() {
     document.getElementById('modalLoginOverlay').classList.add('active');
     setTimeout(() => {
@@ -349,17 +272,20 @@ async function logar() {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando...';
     try {
-        const promise = appSupabase.rpc('validar_codigo_acesso', { codigo_input: codigo });
-        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 6000));
-        const { data, error } = await Promise.race([promise, timeout]);
-        if (error || !data || !data[0]?.valido) {
-            erroMsg.textContent = 'Código incorreto.';
+        // O login_sga espera meio segundo antes de negar um código errado,
+        // então o timeout precisa de folga sobre esse atraso proposital.
+        const promise = autenticarUsuario(codigo);
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 10000));
+        const resultado = await Promise.race([promise, timeout]);
+        if (!resultado.sucesso) {
+            erroMsg.textContent = resultado.mensagem;
             erroMsg.classList.remove('hidden');
         } else {
             usuarioLogado = true;
+            usuarioNome = resultado.usuario.nome || 'Gestor';
             fecharModalLogin();
             atualizarHeader(true);
-            mostrarToast('Bem-vindo, Gestor!', 'success');
+            mostrarToast(`Acesso liberado — ${usuarioNome}`, 'success');
             await carregarDados();
         }
     } catch (err) {
@@ -382,12 +308,12 @@ function atualizarHeader(logado) {
     `;
     if (logado) {
         // Padrão dos outros sistemas: o perfil em tipo miúdo, caixa alta e
-        // laranja, e Sair como botão de ícone só, sem moldura. (Aqui não há
-        // nome próprio para saudar: o código de acesso é compartilhado.)
+        // laranja, e Sair como botão de ícone só, sem moldura. O código de
+        // acesso agora é individual, então dá para saudar pelo nome.
         actions.innerHTML = `
             <span class="header-perfil">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                Gestor
+                ${escapeHtml(usuarioNome)}
             </span>
             <button class="btn-icone-topo" onclick="sair()" title="Sair">
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -418,8 +344,10 @@ function atualizarVisibilidadeNovaSolicitacao() {
     }
 }
 
-function sair() {
+async function sair() {
     usuarioLogado = false;
+    usuarioNome = '';
+    await encerrarSessao();
     atualizarHeader(false);
     mostrarToast('Logout realizado', 'info');
     dadosTabela = [];
@@ -427,13 +355,12 @@ function sair() {
     atualizarMetricas();
 }
 
+// ========== DADOS ==========
 async function carregarDados() {
-    if (!appSupabase || carregandoDados) return;
+    if (carregandoDados) return;
     carregandoDados = true;
     try {
-        const { data, error } = await appSupabase.from('solicitacoes').select('*').order('criado_em', { ascending: false });
-        if (error) throw error;
-        dadosTabela = data || [];
+        dadosTabela = await listarSolicitacoes();
         console.log('✅ Dados carregados:', dadosTabela.length);
         renderizarTabela();
         atualizarMetricas();
@@ -449,11 +376,11 @@ function renderizarTabela() {
     const emptyState = document.getElementById('emptyState');
     const paginationContainer = document.getElementById('paginationContainer');
     if (!tbody) return;
-    
+
     let filtrados = dadosTabela;
     if (filtroAtual !== 'todos') {
         if (filtroAtual === 'finalizado') {
-            filtrados = filtrados.filter(r => r.status === 'concluido' || r.status === 'finalizado');
+            filtrados = filtrados.filter(r => isFinalizado(r.status));
         } else {
             filtrados = filtrados.filter(r => r.status === filtroAtual);
         }
@@ -482,7 +409,7 @@ function renderizarTabela() {
     const fim = inicio + itensPorPagina;
     const itensPagina = filtrados.slice(inicio, fim);
     const fragment = document.createDocumentFragment();
-    
+
     itensPagina.forEach(item => {
         const tr = document.createElement('tr');
 
@@ -518,7 +445,7 @@ function renderizarTabela() {
         `;
         fragment.appendChild(tr);
     });
-    
+
     tbody.appendChild(fragment);
     if (paginationContainer) paginationContainer.style.display = 'flex';
     atualizarPaginacao(filtrados.length);
@@ -539,7 +466,7 @@ function atualizarPaginacao(totalItens) {
     const inicio = (paginaAtual - 1) * itensPorPagina + 1;
     const fim = Math.min(paginaAtual * itensPorPagina, totalItens);
     if (infoEl) infoEl.textContent = `${inicio}-${fim} de ${totalItens}`;
-    
+
     ['btnFirst','btnPrev','btnNext','btnLast'].forEach((id, i) => {
         const btn = document.getElementById(id);
         if (btn) {
@@ -547,7 +474,7 @@ function atualizarPaginacao(totalItens) {
             else btn.disabled = paginaAtual === totalPaginas;
         }
     });
-    
+
     if (numbersEl) {
         numbersEl.innerHTML = '';
         let startPage = Math.max(1, paginaAtual - 2);
@@ -570,7 +497,7 @@ function filtrar(status, btn) { filtroAtual = status; paginaAtual = 1; document.
 function buscar() {
     const termo = document.getElementById('searchInput').value.toLowerCase().trim();
     if (!termo) { renderizarTabela(); return; }
-    const filtrados = dadosTabela.filter(item => 
+    const filtrados = dadosTabela.filter(item =>
         (item.solicitante_nome && item.solicitante_nome.toLowerCase().includes(termo)) ||
         (item.solicitante_cliente && item.solicitante_cliente.toLowerCase().includes(termo)) ||
         (item.protocolo && item.protocolo.toLowerCase().includes(termo)) ||
@@ -604,7 +531,6 @@ function buscar() {
 
 async function salvarSolicitacao(e) {
     e.preventDefault();
-    if (!appSupabase) return mostrarToast('Erro de conexão', 'error');
     const form = e.target;
     let valido = true, primeiro = null;
     form.querySelectorAll('[required]').forEach(c => {
@@ -632,7 +558,7 @@ async function salvarSolicitacao(e) {
         const formatos = []; form.querySelectorAll('input[name="formato[]"]:checked').forEach(cb => formatos.push(cb.value));
         let cliente = document.getElementById('clienteInput').value.trim();
         if (cliente.startsWith('#')) cliente = cliente.substring(1);
-        
+
         const payload = {
             solicitante_nome: fd.get('solicitante_nome'), solicitante_setor: fd.get('solicitante_setor'),
             solicitante_cliente: cliente || null,
@@ -645,13 +571,12 @@ async function salvarSolicitacao(e) {
             dimensoes: fd.get('dimensoes') || null, paginas: fd.get('paginas') ? parseInt(fd.get('paginas')) : null,
             identidade_visual: fd.get('identidade_visual') === 'sim', identidade_diretorio: fd.get('identidade_diretorio') || null,
             referencias_diretorio: fd.get('referencias_diretorio') || null, materiais_diretorio: fd.get('materiais_diretorio') || null,
-            observacoes: fd.get('observacoes') || null, status: 'na_fila', criado_em: new Date().toISOString()
+            observacoes: fd.get('observacoes') || null, status: STATUS.NA_FILA, criado_em: new Date().toISOString()
         };
-        const { data, error } = await appSupabase.from('solicitacoes').insert([payload]).select();
-        if (error) throw error;
+        const criada = await criarSolicitacao(payload);
         mostrarToast('Solicitação salva com sucesso!', 'success');
         toggleFormulario(); await carregarDados();
-        const s = data?.[0] || payload;
+        const s = criada || payload;
         notificarTeams(
             `📋 Nova Solicitação — ${s.protocolo || 'SGA'}`,
             [
@@ -668,36 +593,27 @@ async function salvarSolicitacao(e) {
     finally { btn.disabled = false; btn.innerHTML = oldHTML; }
 }
 
-// ✅ CORREÇÃO CRÍTICA: Envia "concluido" para o banco, respeitando a constraint
 async function mudarStatus(id, novoStatus) {
     if (!usuarioLogado) { mostrarToast('Faça login como gestor', 'error'); return; }
     console.log('🔄 Mudando status:', { id, novoStatus });
     try {
-        const { data, error } = await appSupabase
-            .from('solicitacoes')
-            .update({ status: novoStatus, atualizado_em: new Date().toISOString() })
-            .eq('id', id)
-            .select();
-        
-        if (error) throw error;
-        
+        const atualizada = await atualizarStatus(id, novoStatus);
+
         const idx = dadosTabela.findIndex(d => d.id === id);
         if (idx !== -1) {
-            dadosTabela[idx].status = novoStatus;
-            if (data && data[0]) dadosTabela[idx] = { ...dadosTabela[idx], ...data[0] };
+            dadosTabela[idx] = { ...dadosTabela[idx], ...atualizada };
         }
-        
+
         renderizarTabela(); atualizarMetricas();
         mostrarToast('Status atualizado!', 'success');
         const item = dadosTabela.find(d => d.id === id);
-        const statusLabels = { na_fila: 'Na Fila', em_andamento: 'Em Andamento', ajustes: 'Ajuste Pendente', concluido: 'Finalizado', finalizado: 'Finalizado' };
         if (item) {
             notificarTeams(
                 `🔄 Status Atualizado — ${item.protocolo || id}`,
                 [
                     { title: 'Solicitante', value: item.solicitante_nome },
                     { title: 'Tipo de Material', value: item.tipo_material },
-                    { title: 'Novo Status', value: statusLabels[novoStatus] || novoStatus },
+                    { title: 'Novo Status', value: getStatusLabel(novoStatus) },
                 ],
                 null
             );
@@ -712,22 +628,20 @@ async function mudarStatus(id, novoStatus) {
 async function excluirSolicitacao(id) {
     if (!usuarioLogado || !confirm('Excluir esta solicitação?')) return;
     try {
-        const { error } = await appSupabase.from('solicitacoes').delete().eq('id', id);
-        if (error) throw error;
+        await excluirSolicitacaoNoBanco(id);
         const idx = dadosTabela.findIndex(d => d.id === id);
         if (idx !== -1) { dadosTabela.splice(idx, 1); renderizarTabela(); atualizarMetricas(); }
         mostrarToast('Excluído com sucesso', 'success');
-    } catch (err) { console.error(err); mostrarToast('Erro ao excluir', 'error'); await carregarDados(); }
+    } catch (err) { console.error(err); mostrarToast('Erro ao excluir: ' + err.message, 'error'); await carregarDados(); }
 }
 
 function verDetalhes(id) {
     const item = dadosTabela.find(d => d.id === id || d.protocolo === id);
     if (!item) return;
     const d = item;
-    const statusText = {'na_fila':'Na Fila','em_andamento':'Em Andamento','ajustes':'Ajuste Pendente','concluido':'Finalizado','finalizado':'Finalizado'}[d.status] || 'Na Fila';
     let html = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;padding:16px;background:linear-gradient(135deg,rgba(58,101,176,0.12),rgba(30,41,59,0.5));border-radius:var(--radius-lg);border:1px solid var(--border-color);">
         <div><span style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;font-weight:600;">Protocolo</span><div class="protocolo-text" style="font-size:1.2rem;font-weight:700;margin-top:3px;">${d.protocolo || d.id}</div></div>
-        <div><span style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;font-weight:600;">Status</span><div style="margin-top:6px;"><span class="status-badge status-${d.status === 'concluido' ? 'finalizado' : d.status}">${statusText}</span></div></div>
+        <div><span style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;font-weight:600;">Status</span><div style="margin-top:6px;">${statusBadgeHTML(d)}</div></div>
         <div><span style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;font-weight:600;">Data</span><div style="font-size:1rem;font-weight:600;margin-top:3px;">${d.criado_em ? new Date(d.criado_em).toLocaleDateString('pt-BR') : '-'}</div></div>
     </div>`;
     const sec = (i,t,c) => `<div style="margin-bottom:12px;border:1px solid var(--border-color);border-radius:var(--radius-md);overflow:hidden;"><div style="padding:10px 14px;background:rgba(58,101,176,0.06);border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px;"><i class="fas fa-${i}" style="color:var(--blue);"></i><span style="font-weight:600;font-size:0.85rem;">${t}</span></div><div style="padding:12px;">${c}</div></div>`;
@@ -751,11 +665,11 @@ function verDetalhes(id) {
 
 function atualizarMetricas() {
     document.getElementById('metricTotal').textContent = dadosTabela.length;
-    document.getElementById('metricFila').textContent = dadosTabela.filter(d => d.status === 'na_fila').length;
-    document.getElementById('metricProc').textContent = dadosTabela.filter(d => d.status === 'em_andamento').length;
-    document.getElementById('metricAjuste').textContent = dadosTabela.filter(d => d.status === 'ajustes').length;
-    // ✅ Conta tanto 'concluido' quanto 'finalizado' para o dashboard
-    document.getElementById('metricDone').textContent = dadosTabela.filter(d => d.status === 'concluido' || d.status === 'finalizado').length;
+    document.getElementById('metricFila').textContent = dadosTabela.filter(d => d.status === STATUS.NA_FILA).length;
+    document.getElementById('metricProc').textContent = dadosTabela.filter(d => d.status === STATUS.EM_ANDAMENTO).length;
+    document.getElementById('metricAjuste').textContent = dadosTabela.filter(d => d.status === STATUS.AJUSTES).length;
+    // Conta tanto 'concluido' quanto 'finalizado' para o dashboard
+    document.getElementById('metricDone').textContent = dadosTabela.filter(d => isFinalizado(d.status)).length;
 }
 
 function mostrarToast(msg, tipo='success') {
@@ -775,3 +689,29 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
     if(e.key==='Escape') { if(formAberto) toggleFormulario(); else { fecharModalLogin(); document.getElementById('modalViewOverlay').classList.remove('active'); } }
 });
+
+// ========== PONTE COM O HTML ==========
+// O index.html chama estas funções por `onclick`/`onchange`/`onkeyup`, e o
+// mesmo vale para os botões que a tabela monta em tempo de execução. Como
+// este arquivo é um módulo ES, nada aqui é global por padrão — a ponte é
+// explícita.
+window.toggleFormulario = toggleFormulario;
+window.toggleField = toggleField;
+window.limparFormulario = limparFormulario;
+window.salvarSolicitacao = salvarSolicitacao;
+
+window.abrirModalLogin = abrirModalLogin;
+window.fecharModalLogin = fecharModalLogin;
+window.logar = logar;
+window.sair = sair;
+window.toggleEye = toggleEye;
+
+window.filtrar = filtrar;
+window.filtrarPorSetor = filtrarPorSetor;
+window.buscar = buscar;
+window.mudarPagina = mudarPagina;
+window.mudarItensPorPagina = mudarItensPorPagina;
+
+window.verDetalhes = verDetalhes;
+window.mudarStatus = mudarStatus;
+window.excluirSolicitacao = excluirSolicitacao;

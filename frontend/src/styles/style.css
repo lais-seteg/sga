@@ -21,14 +21,14 @@
    ══════════════════════════════════════════════════════════════════════ */
 
 /* ─── Satoshi, a fonte do Controle de Folgas ────────────────────────────
-   Servida pelo próprio site (pasta fonts/), no lugar da Inter que vinha do
+   Servida pelo próprio site (pasta public/assets/fonts/), no lugar da Inter que vinha do
    Google Fonts. Some uma folha de estilo e uma fonte de dois hosts
    externos do caminho crítico de renderização. */
-@font-face { font-family:'Satoshi'; src:url('fonts/Satoshi-300.woff2') format('woff2'); font-weight:300; font-style:normal; font-display:swap }
-@font-face { font-family:'Satoshi'; src:url('fonts/Satoshi-400.woff2') format('woff2'); font-weight:400; font-style:normal; font-display:swap }
-@font-face { font-family:'Satoshi'; src:url('fonts/Satoshi-500.woff2') format('woff2'); font-weight:500; font-style:normal; font-display:swap }
-@font-face { font-family:'Satoshi'; src:url('fonts/Satoshi-700.woff2') format('woff2'); font-weight:700; font-style:normal; font-display:swap }
-@font-face { font-family:'Satoshi'; src:url('fonts/Satoshi-900.woff2') format('woff2'); font-weight:900; font-style:normal; font-display:swap }
+@font-face { font-family:'Satoshi'; src:url('/assets/fonts/Satoshi-300.woff2') format('woff2'); font-weight:300; font-style:normal; font-display:swap }
+@font-face { font-family:'Satoshi'; src:url('/assets/fonts/Satoshi-400.woff2') format('woff2'); font-weight:400; font-style:normal; font-display:swap }
+@font-face { font-family:'Satoshi'; src:url('/assets/fonts/Satoshi-500.woff2') format('woff2'); font-weight:500; font-style:normal; font-display:swap }
+@font-face { font-family:'Satoshi'; src:url('/assets/fonts/Satoshi-700.woff2') format('woff2'); font-weight:700; font-style:normal; font-display:swap }
+@font-face { font-family:'Satoshi'; src:url('/assets/fonts/Satoshi-900.woff2') format('woff2'); font-weight:900; font-style:normal; font-display:swap }
 
 /* ══════════════ TEMA CLARO (padrão) ══════════════ */
 :root {
