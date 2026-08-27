@@ -361,7 +361,9 @@ async function sair() {
     await encerrarSessao();
     atualizarHeader(false);
     mostrarToast('Logout realizado', 'info');
-    dadosTabela = [];
+    // A lista é pública: quem sai continua vendo as solicitações, só perde os
+    // botões de ação. Zerar dadosTabela aqui esvaziava a tela e obrigava a
+    // recarregar a página no navegador para o conteúdo voltar.
     renderizarTabela();
     atualizarMetricas();
 }
