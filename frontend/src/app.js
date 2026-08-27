@@ -27,7 +27,7 @@ import {
 import {
   autenticarUsuario,
   encerrarSessao,
-  limparSessaoResidual,
+  restaurarSessao,
 } from "./modules/usuarios/usuariosService.js";
 import { STATUS, getStatusLabel, getStatusClass, isFinalizado } from "./constants/status.js";
 
@@ -174,17 +174,28 @@ let itensPorPagina = 10;
 let totalPaginas = 1;
 let setorFiltro = '';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     applyTheme(localStorage.getItem('sga_theme') || 'light'); // claro é o padrão
     document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
-
-    // A página abre sempre deslogada: derruba token que tenha sobrado de uma
-    // visita anterior, para não deixar sessão viva sem ninguém logado na tela.
-    limparSessaoResidual();
 
     configurarClockifyAutocomplete();
     // Os projetos do Clockify não são buscados aqui: vêm sob demanda
     // (ver garantirProjetosClockify), fora do carregamento inicial.
+
+    // A sessão de quem gerencia fica salva no dispositivo: se o token guardado
+    // ainda valer, a página abre já logada, sem pedir o código de novo. Quem
+    // não tem token não paga round-trip nenhum — restaurarSessao devolve null
+    // sem falar com o banco.
+    //
+    // O restore vem ANTES de carregarDados de propósito: a tabela desenha os
+    // botões de ação conforme usuarioLogado, então na ordem inversa a
+    // primeira renderização sairia sem eles.
+    const sessao = await restaurarSessao();
+    if (sessao) {
+        usuarioLogado = true;
+        usuarioNome = sessao.nome || 'Gestor';
+        atualizarHeader(true);
+    }
 
     carregarDados();
 });
@@ -420,11 +431,11 @@ function renderizarTabela() {
         if (item.formatos && Array.isArray(item.formatos) && item.formatos.length > 0) {
             const fmts = item.formatos.filter(f => f && f !== 'outros');
             if (fmts.length <= 2) {
-                formatoHTML = fmts.map(f => `<span class="formato-badge">${FORMATO_ICONS[f]||''} ${f}</span>`).join('');
+                formatoHTML = fmts.map(f => `<span class="formato-badge">${FORMATO_ICONS[f]||''} ${escapeHtml(f)}</span>`).join('');
             } else {
                 formatoHTML = `<span class="formato-badge">${fmts.length} canais</span>`;
             }
-            if (item.formato_outros) formatoHTML += `<span class="formato-badge-outros">${item.formato_outros}</span>`;
+            if (item.formato_outros) formatoHTML += `<span class="formato-badge-outros">${escapeHtml(item.formato_outros)}</span>`;
         }
 
         let prazoDisplay = '-';
@@ -434,10 +445,10 @@ function renderizarTabela() {
         }
 
         tr.innerHTML = `
-            <td style="white-space:nowrap"><strong class="protocolo-text">${item.protocolo || item.id}</strong></td>
-            <td class="td-texto" title="${escapeHtml(item.solicitante_nome || '-')}">${item.solicitante_nome || '-'}</td>
-            <td class="td-texto" title="${escapeHtml(item.solicitante_setor || '-')}">${item.solicitante_setor || '-'}</td>
-            <td class="td-texto" title="${escapeHtml(String(tipoMaterial).replace(/<[^>]*>/g, ''))}">${tipoMaterial}</td>
+            <td style="white-space:nowrap"><strong class="protocolo-text">${escapeHtml(item.protocolo || item.id)}</strong></td>
+            <td class="td-texto" title="${escapeHtml(item.solicitante_nome || '-')}">${escapeHtml(item.solicitante_nome || '-')}</td>
+            <td class="td-texto" title="${escapeHtml(item.solicitante_setor || '-')}">${escapeHtml(item.solicitante_setor || '-')}</td>
+            <td class="td-texto" title="${escapeHtml(String(tipoMaterial).replace(/<[^>]*>/g, ''))}">${escapeHtml(tipoMaterial)}</td>
             <td class="td-texto">${formatoHTML}</td>
             <td>${prazoDisplay}</td>
             <td>${statusBadgeHTML(item)}</td>
@@ -518,8 +529,8 @@ function buscar() {
         const tr = document.createElement('tr');
         let tipo = (item.tipo_material_outro || item.tipo_material || '-').charAt(0).toUpperCase() + (item.tipo_material_outro || item.tipo_material || '-').slice(1);
         tr.innerHTML = `
-            <td><strong class="protocolo-text">${item.protocolo || item.id}</strong></td>
-            <td>${item.solicitante_nome || '-'}</td><td>${item.solicitante_setor || '-'}</td><td>${tipo}</td><td>-</td>
+            <td><strong class="protocolo-text">${escapeHtml(item.protocolo || item.id)}</strong></td>
+            <td>${escapeHtml(item.solicitante_nome || '-')}</td><td>${escapeHtml(item.solicitante_setor || '-')}</td><td>${escapeHtml(tipo)}</td><td>-</td>
             <td>${item.prazo_ideal ? new Date(item.prazo_ideal).toLocaleDateString('pt-BR') : '-'}</td>
             <td>${statusBadgeHTML(item)}</td>
             <td>${acoesHTMLFor(item)}</td>
@@ -640,25 +651,25 @@ function verDetalhes(id) {
     if (!item) return;
     const d = item;
     let html = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;padding:16px;background:linear-gradient(135deg,rgba(58,101,176,0.12),rgba(30,41,59,0.5));border-radius:var(--radius-lg);border:1px solid var(--border-color);">
-        <div><span style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;font-weight:600;">Protocolo</span><div class="protocolo-text" style="font-size:1.2rem;font-weight:700;margin-top:3px;">${d.protocolo || d.id}</div></div>
+        <div><span style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;font-weight:600;">Protocolo</span><div class="protocolo-text" style="font-size:1.2rem;font-weight:700;margin-top:3px;">${escapeHtml(d.protocolo || d.id)}</div></div>
         <div><span style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;font-weight:600;">Status</span><div style="margin-top:6px;">${statusBadgeHTML(d)}</div></div>
         <div><span style="color:var(--text-muted);font-size:0.75rem;text-transform:uppercase;font-weight:600;">Data</span><div style="font-size:1rem;font-weight:600;margin-top:3px;">${d.criado_em ? new Date(d.criado_em).toLocaleDateString('pt-BR') : '-'}</div></div>
     </div>`;
     const sec = (i,t,c) => `<div style="margin-bottom:12px;border:1px solid var(--border-color);border-radius:var(--radius-md);overflow:hidden;"><div style="padding:10px 14px;background:rgba(58,101,176,0.06);border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px;"><i class="fas fa-${i}" style="color:var(--blue);"></i><span style="font-weight:600;font-size:0.85rem;">${t}</span></div><div style="padding:12px;">${c}</div></div>`;
     const fld = (l,v) => !v ? `<div style="margin-bottom:10px;min-width:0;"><strong style="color:var(--text-muted);font-size:0.75rem;">${l}</strong><div style="color:var(--text-muted);font-style:italic;font-size:0.85rem;">Não informado</div></div>` : `<div style="margin-bottom:10px;min-width:0;"><strong style="color:var(--text-muted);font-size:0.75rem;">${l}</strong><div style="background:var(--bg-input);padding:8px 12px;border-radius:var(--radius-sm);font-size:0.85rem;word-break:break-word;overflow-wrap:anywhere;white-space:pre-wrap;">${v}</div></div>`;
 
-    html += sec('user','1. Solicitante',`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;min-width:0;">${fld('Nome',d.solicitante_nome)}${fld('Setor',d.solicitante_setor)}${fld('Cliente',d.solicitante_cliente?`#${d.solicitante_cliente}`:null)}</div>`);
-    html += sec('calendar-alt','2. Prazo',`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;min-width:0;">${fld('Data Ideal',d.prazo_ideal?new Date(d.prazo_ideal).toLocaleDateString('pt-BR'):null)}${fld('Data Limite',d.prazo_limite?new Date(d.prazo_limite).toLocaleDateString('pt-BR'):null)}</div>${d.urgente?`<div style="background:rgba(231,76,60,0.1);padding:12px;border-radius:var(--radius-sm);border:1px solid rgba(231,76,60,0.3);margin-top:10px;word-break:break-word;overflow-wrap:anywhere;"><p style="color:#e74c3c;font-weight:700;margin-bottom:4px;">⚠️ URGENTE</p><p style="margin:0;">${d.urgencia_justificativa||'-'}</p></div>`:''}`);
-    html += sec('shapes','3. Tipo',`<p style="word-break:break-word;overflow-wrap:anywhere;"><strong>Tipo:</strong> <span style="background:var(--bg-input);padding:4px 10px;border-radius:var(--radius-sm);margin-left:6px;">${d.tipo_material_outro||d.tipo_material||'-'}</span></p>`);
-    html += sec('bullseye','4. Objetivo',`<p style="background:var(--bg-input);padding:12px;border-radius:var(--radius-sm);white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;">${d.objetivo||'-'}</p>`);
-    html += sec('file-word','5. Conteúdo',`<p style="background:var(--bg-input);padding:12px;border-radius:var(--radius-sm);white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;">${d.conteudo||'-'}</p>`);
-    html += sec('exclamation-circle','6. Obrigatórias',`<p style="background:var(--bg-input);padding:12px;border-radius:var(--radius-sm);white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;">${d.info_obrigatorias||'-'}</p>`);
-    let fmts = ''; if(d.formatos) fmts = d.formatos.map(f=>`<span style="display:inline-block;padding:3px 8px;background:rgba(100,116,139,0.2);border-radius:var(--radius-sm);font-size:0.75rem;margin:2px;">${f}</span>`).join('');
-    html += sec('expand','7. Formato',`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;min-width:0;"><div style="min-width:0;">${fld('Canais',fmts||'-')}</div>${d.dimensoes?fld('Dimensões',d.dimensoes):''}${d.paginas?fld('Páginas',d.paginas.toString()):''}</div>`);
-    if(d.identidade_visual) html += sec('palette','8. Identidade',`${fld('Diretório',d.identidade_diretorio)}`);
-    if(d.referencias_diretorio) html += sec('images','9. Referências',`${fld('Diretório',d.referencias_diretorio)}`);
-    if(d.materiais_diretorio) html += sec('folder-open','10. Materiais',`${fld('Diretório',d.materiais_diretorio)}`);
-    if(d.observacoes) html += sec('sticky-note','11. Observações',`<p style="background:var(--bg-input);padding:12px;border-radius:var(--radius-sm);white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;">${d.observacoes}</p>`);
+    html += sec('user','1. Solicitante',`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;min-width:0;">${fld('Nome',escapeHtml(d.solicitante_nome))}${fld('Setor',escapeHtml(d.solicitante_setor))}${fld('Cliente',d.solicitante_cliente?`#${escapeHtml(d.solicitante_cliente)}`:null)}</div>`);
+    html += sec('calendar-alt','2. Prazo',`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;min-width:0;">${fld('Data Ideal',d.prazo_ideal?new Date(d.prazo_ideal).toLocaleDateString('pt-BR'):null)}${fld('Data Limite',d.prazo_limite?new Date(d.prazo_limite).toLocaleDateString('pt-BR'):null)}</div>${d.urgente?`<div style="background:rgba(231,76,60,0.1);padding:12px;border-radius:var(--radius-sm);border:1px solid rgba(231,76,60,0.3);margin-top:10px;word-break:break-word;overflow-wrap:anywhere;"><p style="color:#e74c3c;font-weight:700;margin-bottom:4px;">⚠️ URGENTE</p><p style="margin:0;">${escapeHtml(d.urgencia_justificativa||'-')}</p></div>`:''}`);
+    html += sec('shapes','3. Tipo',`<p style="word-break:break-word;overflow-wrap:anywhere;"><strong>Tipo:</strong> <span style="background:var(--bg-input);padding:4px 10px;border-radius:var(--radius-sm);margin-left:6px;">${escapeHtml(d.tipo_material_outro||d.tipo_material||'-')}</span></p>`);
+    html += sec('bullseye','4. Objetivo',`<p style="background:var(--bg-input);padding:12px;border-radius:var(--radius-sm);white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(d.objetivo||'-')}</p>`);
+    html += sec('file-word','5. Conteúdo',`<p style="background:var(--bg-input);padding:12px;border-radius:var(--radius-sm);white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(d.conteudo||'-')}</p>`);
+    html += sec('exclamation-circle','6. Obrigatórias',`<p style="background:var(--bg-input);padding:12px;border-radius:var(--radius-sm);white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(d.info_obrigatorias||'-')}</p>`);
+    let fmts = ''; if(d.formatos) fmts = d.formatos.map(f=>`<span style="display:inline-block;padding:3px 8px;background:rgba(100,116,139,0.2);border-radius:var(--radius-sm);font-size:0.75rem;margin:2px;">${escapeHtml(f)}</span>`).join('');
+    html += sec('expand','7. Formato',`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;min-width:0;"><div style="min-width:0;">${fld('Canais',fmts||'-')}</div>${d.dimensoes?fld('Dimensões',escapeHtml(d.dimensoes)):''}${d.paginas?fld('Páginas',d.paginas.toString()):''}</div>`);
+    if(d.identidade_visual) html += sec('palette','8. Identidade',`${fld('Diretório',escapeHtml(d.identidade_diretorio))}`);
+    if(d.referencias_diretorio) html += sec('images','9. Referências',`${fld('Diretório',escapeHtml(d.referencias_diretorio))}`);
+    if(d.materiais_diretorio) html += sec('folder-open','10. Materiais',`${fld('Diretório',escapeHtml(d.materiais_diretorio))}`);
+    if(d.observacoes) html += sec('sticky-note','11. Observações',`<p style="background:var(--bg-input);padding:12px;border-radius:var(--radius-sm);white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;">${escapeHtml(d.observacoes)}</p>`);
     document.getElementById('modalViewContent').innerHTML = html;
     document.getElementById('modalViewOverlay').classList.add('active');
 }
@@ -675,7 +686,7 @@ function atualizarMetricas() {
 function mostrarToast(msg, tipo='success') {
     const ex = document.querySelector('.toast-notification'); if(ex) ex.remove();
     const t = document.createElement('div'); t.className = `toast-notification ${tipo}`;
-    t.innerHTML = `<i class="fas ${tipo==='success'?'fa-check-circle':tipo==='error'?'fa-exclamation-circle':'fa-info-circle'}"></i><span>${msg}</span>`;
+    t.innerHTML = `<i class="fas ${tipo==='success'?'fa-check-circle':tipo==='error'?'fa-exclamation-circle':'fa-info-circle'}"></i><span>${escapeHtml(msg)}</span>`;
     t.style.cssText = `position:fixed;top:70px;right:20px;padding:12px 18px;border-radius:8px;color:white;font-weight:600;z-index:9999;display:flex;align-items:center;gap:8px;font-size:0.85rem;box-shadow:0 8px 24px rgba(0,0,0,0.5);transform:translateX(400px);transition:transform 0.3s cubic-bezier(0.68,-0.55,0.265,1.55);background:${tipo==='success'?'#6CC24A':tipo==='error'?'#e74c3c':'#3A65B0'};`;
     document.body.appendChild(t); requestAnimationFrame(()=>t.style.transform='translateX(0)');
     setTimeout(()=>{ t.style.transform='translateX(400px)'; setTimeout(()=>t.remove(),300); },3000);

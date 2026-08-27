@@ -6,9 +6,9 @@
  * Serviço de usuários — autenticação por código de acesso.
  *
  * A validação acontece NO BANCO, pela RPC login_sga (SECURITY DEFINER), que
- * compara o código contra o hash bcrypt e devolve um token de sessão válido
- * por 12 horas. A tabela `usuarios` não é legível pelo cliente — o código de
- * acesso nunca sai do servidor, e o que volta é só nome, papel e token.
+ * compara o código contra o hash bcrypt e devolve um token de sessão. A
+ * tabela `usuarios` não é legível pelo cliente — o código de acesso nunca
+ * sai do servidor, e o que volta é só nome, papel e token.
  */
 
 import { supabase, sgaSetToken, sgaGetToken } from "../../services/supabaseClient.js";
@@ -61,13 +61,31 @@ export async function encerrarSessao() {
 }
 
 /**
- * Apaga qualquer token que tenha sobrado de uma visita anterior.
+ * Recupera a sessão guardada no dispositivo, para quem gerencia não precisar
+ * digitar o código a cada visita.
  *
- * A página continua abrindo deslogada, como sempre abriu: quem gerencia
- * digita o código a cada visita. Sem esta limpeza, o token ficaria no
- * localStorage valendo por 12 horas enquanto a tela mostra "Gestor" como
- * botão de entrar — sessão viva sem ninguém logado na interface.
+ * Quem decide se o token vale é o banco, pela RPC sessao_atual: ela confere
+ * o cabeçalho X-SGA-Token, recusa usuário desativado e renova o prazo a
+ * cada uso. O cliente não tem voto nisso — só guarda o token e pergunta.
+ *
+ * Devolve { nome, role } quando a sessão vale, ou null. Em qualquer falha —
+ * token expirado, sem rede, ou a RPC ainda não existindo no banco — o token
+ * local é descartado e a página segue deslogada, exatamente como se
+ * comportava antes desta função existir. É o que garante que uma falha aqui
+ * nunca bloqueie o acesso: no pior caso, pede o código.
  */
-export function limparSessaoResidual() {
-  sgaSetToken(null);
+export async function restaurarSessao() {
+  if (!sgaGetToken()) return null;
+  try {
+    const { data, error } = await supabase.rpc("sessao_atual");
+    if (error || !data || data.ok !== true) {
+      sgaSetToken(null);
+      return null;
+    }
+    return { nome: data.nome, role: data.role };
+  } catch (e) {
+    console.warn("Não foi possível restaurar a sessão:", e);
+    sgaSetToken(null);
+    return null;
+  }
 }
