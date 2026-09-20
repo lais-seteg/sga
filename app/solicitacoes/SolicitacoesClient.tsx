@@ -369,7 +369,7 @@ export default function SolicitacoesClient({
           marginBottom: 14,
         }}
       >
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", flexShrink: 0 }}>
           <PilulaFiltro
             ativo={filtroStatus === "todos"}
             onClick={() => reiniciarPagina(setFiltroStatus)("todos")}
@@ -387,14 +387,12 @@ export default function SolicitacoesClient({
           ))}
         </div>
 
-        <div style={{ flex: 1 }} />
-
         <select
           className="pmo-select"
           value={filtroSetor}
           onChange={(e) => reiniciarPagina(setFiltroSetor)(e.target.value)}
           aria-label="Filtrar por setor"
-          style={{ minWidth: 150 }}
+          style={{ minWidth: 132, flexShrink: 0 }}
         >
           <option value="">Todos os setores</option>
           {setoresDisponiveis.map((s) => (
@@ -414,14 +412,15 @@ export default function SolicitacoesClient({
             background: "var(--surface)",
             border: "1.5px solid var(--border)",
             borderRadius: "var(--r-md)",
-            minWidth: 240,
+            flex: "1 1 190px",
+            minWidth: 170,
           }}
         >
           <i className="bi bi-search" style={{ fontSize: 12.5, color: "var(--text-faint)" }} />
           <input
             value={busca}
             onChange={(e) => reiniciarPagina(setBusca)(e.target.value)}
-            placeholder="Buscar protocolo, solicitante, projeto..."
+            placeholder="Buscar protocolo, solicitante..."
             aria-label="Buscar solicitações"
             style={{
               flex: 1,
@@ -1013,17 +1012,20 @@ function PilulaFiltro({
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 6,
+        gap: 5,
+        // Mais justa que o padrão: são oito pílulas dividindo a linha com o
+        // filtro de setor e a busca.
         height: 32,
-        padding: "0 12px",
+        padding: "0 10px",
         borderRadius: "var(--r-pill)",
         border: `1px solid ${ativo ? "var(--orange)" : "var(--border)"}`,
         background: ativo ? "var(--orange-15)" : "var(--surface)",
         color: ativo ? "var(--orange)" : "var(--text-muted)",
         fontFamily: "inherit",
-        fontSize: 12.5,
+        fontSize: 12,
         fontWeight: 700,
         cursor: "pointer",
+        whiteSpace: "nowrap",
       }}
     >
       {rotulo}
