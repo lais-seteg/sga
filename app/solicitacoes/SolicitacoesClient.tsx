@@ -845,15 +845,21 @@ function KpiCompacto({
  * sem ninguém precisar comparar datas de cabeça.
  */
 function CelulaTempo({ solicitacao: s }: { solicitacao: SolicitacaoLinha }) {
+  // `emAberto` já é falso para pedido cancelado, então o alerta de prazo não
+  // dispara nele: cobrar atraso de uma peça que o solicitante desistiu de
+  // receber seria culpar a equipe por uma decisão que não foi dela.
   const estourouOPrazo =
     s.emAberto && new Date().toISOString().slice(0, 10) > s.prazoLimite;
+  const cancelada = s.status === StatusSolicitacao.cancelado;
 
   return (
     <span
       title={
         s.emAberto
           ? `Aberta em ${formatDate(s.criadoEm)} — ainda em andamento`
-          : `Aberta em ${formatDate(s.criadoEm)}, finalizada em ${formatDate(s.concluidoEm)}`
+          : cancelada
+            ? `Aberta em ${formatDate(s.criadoEm)}, cancelada em ${formatDate(s.encerradoEm)}`
+            : `Aberta em ${formatDate(s.criadoEm)}, finalizada em ${formatDate(s.encerradoEm)}`
       }
       style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", lineHeight: 1.3 }}
     >
@@ -861,13 +867,21 @@ function CelulaTempo({ solicitacao: s }: { solicitacao: SolicitacaoLinha }) {
         style={{
           fontSize: 13,
           fontVariantNumeric: "tabular-nums",
-          color: estourouOPrazo ? "var(--red)" : s.emAberto ? "var(--text)" : "var(--green)",
+          // Verde é "entregue no fim das contas". Cancelado parou o relógio
+          // sem virar peça, então fica neutro.
+          color: estourouOPrazo
+            ? "var(--red)"
+            : s.emAberto
+              ? "var(--text)"
+              : cancelada
+                ? "var(--text-muted)"
+                : "var(--green)",
         }}
       >
         {formatarDuracao(s.tempoDias)}
       </strong>
       <span style={{ fontSize: 10.5, color: "var(--text-faint)" }}>
-        {s.emAberto ? (estourouOPrazo ? "em atraso" : "em aberto") : "total"}
+        {s.emAberto ? (estourouOPrazo ? "em atraso" : "em aberto") : cancelada ? "até cancelar" : "total"}
       </span>
     </span>
   );

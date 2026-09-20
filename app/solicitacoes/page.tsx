@@ -1,8 +1,8 @@
-import { StatusSolicitacao } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { podeVerTudo, requireUsuario } from "@/lib/session";
 import { listarProjetos } from "@/lib/projetos";
 import SolicitacoesClient from "./SolicitacoesClient";
+import { STATUS_FINAIS } from "@/lib/statusSolicitacao";
 import { EtapaSolicitacao, SolicitacaoLinha } from "./tipos";
 
 export const dynamic = "force-dynamic";
@@ -46,22 +46,36 @@ export default async function SolicitacoesPage() {
   const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
   const linhas: SolicitacaoLinha[] = solicitacoes.map((s) => {
-    // Conclusão = PRIMEIRA vez que chegou em Finalizado. "Primeira" e não
-    // "última" porque reabrir um pedido depois de entregue não desfaz o fato
-    // de que a entrega aconteceu naquela data. Mesma regra de lib/indicadores.
-    const conclusao = s.eventos.find((e) => e.statusNovo === StatusSolicitacao.concluido);
-    const fim = conclusao ? conclusao.criadoEm.getTime() : agora;
+    // Encerramento = PRIMEIRA vez que o pedido chegou a um estado final,
+    // entregue OU cancelado. "Primeira" e não "última" porque reabrir um
+    // pedido depois de encerrado não desfaz o fato de que ele encerrou
+    // naquela data. Mesma regra de lib/indicadores.
+    //
+    // Cancelado encerra pelo mesmo motivo que Finalizado: este relógio mede
+    // tempo de atendimento, e depois que ninguém mais espera a peça não há
+    // atendimento acontecendo. Antes só `concluido` parava o contador, então
+    // um pedido cancelado seguia somando dias para sempre — e ainda aparecia
+    // em vermelho "em atraso", cobrado por um prazo que deixou de valer no
+    // instante em que o solicitante desistiu.
+    const encerramento = s.eventos.find((e) => STATUS_FINAIS.includes(e.statusNovo));
+    const fim = encerramento ? encerramento.criadoEm.getTime() : agora;
 
     const etapas: EtapaSolicitacao[] = s.eventos.map((e, indice) => {
       const proximo = s.eventos[indice + 1];
       // A etapa corrente (sem próximo evento) conta até agora — é o que faz um
       // pedido parado há duas semanas mostrar duas semanas, em vez de zero.
+      //
+      // Um estado FINAL sem próximo evento é a exceção: ele é o ponto de
+      // chegada, não um estágio em que a peça está parada. Contar até agora
+      // faria "Cancelado" exibir uma duração que cresce sozinha, como se
+      // alguém ainda estivesse cancelando.
+      const pontoDeChegada = !proximo && STATUS_FINAIS.includes(e.statusNovo);
       const ate = proximo ? proximo.criadoEm.getTime() : agora;
       return {
         status: e.statusNovo,
         em: e.criadoEm.toISOString(),
         por: e.usuario?.nome ?? null,
-        duracaoDias: Math.max(0, (ate - e.criadoEm.getTime()) / MS_POR_DIA),
+        duracaoDias: pontoDeChegada ? 0 : Math.max(0, (ate - e.criadoEm.getTime()) / MS_POR_DIA),
         aproximada: e.inferido,
         observacao: e.observacao,
       };
@@ -70,10 +84,10 @@ export default async function SolicitacoesPage() {
     return {
       id: s.id,
       protocolo: s.protocolo,
-      concluidoEm: conclusao ? conclusao.criadoEm.toISOString() : null,
-      concluidoPor: conclusao?.usuario?.nome ?? null,
+      encerradoEm: encerramento ? encerramento.criadoEm.toISOString() : null,
+      encerradoPor: encerramento?.usuario?.nome ?? null,
       tempoDias: Math.max(0, (fim - s.criadoEm.getTime()) / MS_POR_DIA),
-      emAberto: !conclusao,
+      emAberto: !encerramento,
       etapas,
       // Sem conta ligada, cai no nome digitado à mão na versão antiga do
       // sistema; sem nem isso, um travessão — nunca uma string vazia, que na

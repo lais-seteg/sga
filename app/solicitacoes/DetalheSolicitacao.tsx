@@ -7,7 +7,7 @@
 import { StatusSolicitacao } from "@prisma/client";
 import { CFStatusBadge } from "@/app/components/ui-kit";
 import { formatDate } from "@/app/components/ui-helpers";
-import { STATUS_INFO } from "@/lib/statusSolicitacao";
+import { STATUS_FINAIS, STATUS_INFO } from "@/lib/statusSolicitacao";
 import { iconeFormato, rotuloFormato, rotuloTipoMaterial } from "@/lib/solicitacaoListas";
 import { formatarDuracao } from "@/lib/indicadores";
 import { EtapaSolicitacao, SolicitacaoLinha } from "./tipos";
@@ -46,10 +46,14 @@ export default function DetalheSolicitacao({ solicitacao: s }: { solicitacao: So
           <CFStatusBadge kind={STATUS_INFO[s.status].kind} label={STATUS_INFO[s.status].label} />
         </Resumo>
         <Resumo rotulo="Aberta em">{formatarDataHora(s.criadoEm)}</Resumo>
-        <Resumo rotulo="Finalizada em">
-          {s.concluidoEm ? (
+        {/* Um pedido cancelado também encerra, e encerra numa data que
+            importa tanto quanto a de entrega — é ela que para o relógio. O
+            rótulo muda junto com o status para a data não ser lida como uma
+            entrega que nunca houve. */}
+        <Resumo rotulo={s.status === StatusSolicitacao.cancelado ? "Cancelada em" : "Finalizada em"}>
+          {s.encerradoEm ? (
             <>
-              {formatarDataHora(s.concluidoEm)}
+              {formatarDataHora(s.encerradoEm)}
               {/* Quem finalizou vem logo abaixo da data, e não escondido na
                   linha do tempo: "quando ficou pronta" e "quem fechou" são a
                   mesma pergunta para quem cobra uma entrega. */}
@@ -57,15 +61,15 @@ export default function DetalheSolicitacao({ solicitacao: s }: { solicitacao: So
                 style={{
                   display: "block",
                   fontSize: 11.5,
-                  color: s.concluidoPor ? "var(--text-muted)" : "var(--text-faint)",
-                  fontStyle: s.concluidoPor ? "normal" : "italic",
+                  color: s.encerradoPor ? "var(--text-muted)" : "var(--text-faint)",
+                  fontStyle: s.encerradoPor ? "normal" : "italic",
                   marginTop: 2,
                 }}
               >
-                {s.concluidoPor ? (
+                {s.encerradoPor ? (
                   <>
                     <i className="bi bi-person-check" style={{ fontSize: 10.5, marginRight: 4 }} />
-                    por {s.concluidoPor}
+                    por {s.encerradoPor}
                   </>
                 ) : (
                   "autor não registrado"
@@ -77,7 +81,18 @@ export default function DetalheSolicitacao({ solicitacao: s }: { solicitacao: So
           )}
         </Resumo>
         <Resumo rotulo={s.emAberto ? "Tempo decorrido" : "Tempo total"}>
-          <strong style={{ color: s.emAberto ? "var(--text)" : "var(--green)" }}>
+          {/* Verde quer dizer "entregue". Um pedido cancelado parou o relógio
+              sem virar peça, então fica neutro: pintá-lo de verde leria como
+              sucesso. */}
+          <strong
+            style={{
+              color: s.emAberto
+                ? "var(--text)"
+                : s.status === StatusSolicitacao.cancelado
+                  ? "var(--text-muted)"
+                  : "var(--green)",
+            }}
+          >
             {formatarDuracao(s.tempoDias)}
           </strong>
         </Resumo>
@@ -404,11 +419,12 @@ function LinhaDoTempo({ etapas }: { etapas: EtapaSolicitacao[] }) {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {/* A última etapa de uma peça JÁ ENTREGUE não tem duração:
-                      não é um estágio em que ela "ficou", é o ponto de
-                      chegada. Mas se houver um passo depois (pedido reaberto),
-                      a duração volta a significar algo e aparece. */}
-                  {ultima && e.status === StatusSolicitacao.concluido
+                  {/* A última etapa de um pedido JÁ ENCERRADO não tem
+                      duração: não é um estágio em que ele "ficou", é o ponto
+                      de chegada — vale tanto para entregue quanto para
+                      cancelado. Mas se houver um passo depois (pedido
+                      reaberto), a duração volta a significar algo e aparece. */}
+                  {ultima && STATUS_FINAIS.includes(e.status)
                     ? ""
                     : formatarDuracao(e.duracaoDias)}
                 </span>
