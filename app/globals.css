@@ -1,0 +1,317 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Satoshi servida pelo próprio site ───────────────────────────────────────
+   O ClockRView busca a Satoshi no CDN da Fontshare. Aqui ela vem de
+   public/assets/fonts, como já vinha na versão anterior do SGA: os .woff2 já
+   estavam no repositório, e servi-los localmente tira um host externo do
+   caminho crítico de renderização.
+   `font-display: swap` — o texto aparece na fonte de sistema e troca quando a
+   Satoshi chega, em vez de ficar invisível esperando. ───────────────────── */
+@font-face {
+  font-family: "Satoshi";
+  src: url("/assets/fonts/Satoshi-300.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/assets/fonts/Satoshi-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/assets/fonts/Satoshi-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/assets/fonts/Satoshi-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Satoshi";
+  src: url("/assets/fonts/Satoshi-900.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── 7Station Design Tokens — cópia literal de tokens/tokens.css do pacote
+   oficial trazida do ClockRView (0000-1-2026--clockrview).
+   Não editar valores aqui sem atualizar o pacote de origem também. ────────── */
+
+:root {
+  /* Warm cream palette */
+  --bg: #f5f2ec;
+  --surface: #ffffff;
+  --surface-2: #fbf8f1;
+  --surface-sunken: #efeae0;
+
+  /* Text */
+  --text: #07142e;
+  --text-muted: #6e6553;
+  --text-faint: #9a8f78;
+
+  /* Border */
+  --border: #e6dfce;
+  --border-strong: #c8bfaa;
+
+  /* Brand */
+  --navy: #071d49;
+  --navy-10: rgba(7, 29, 73, 0.06);
+  --navy-90: rgba(7, 29, 73, 0.9);
+  --orange: #ff8200;
+  --orange-70: rgba(255, 130, 0, 0.7);
+  --orange-10: rgba(255, 130, 0, 0.08);
+  --orange-08: rgba(255, 130, 0, 0.08);
+  --orange-15: rgba(255, 130, 0, 0.15);
+
+  /* Semantic */
+  --blue: #3f6fd9;
+  --blue-15: rgba(63, 111, 217, 0.15);
+  --blue-accent: rgba(85, 126, 207, 0.5);
+  --green: #22c55e;
+  --green-15: rgba(34, 197, 94, 0.15);
+  --red: #ef4444;
+  --red-15: rgba(239, 68, 68, 0.15);
+  --yellow: #f59e0b;
+  --yellow-15: rgba(245, 158, 11, 0.15);
+  --purple: #8b5cf6;
+  --purple-15: rgba(139, 92, 246, 0.15);
+  --white: #ffffff;
+
+  /* Legacy gray (backward compat) */
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-400: #9ca3af;
+  --gray-600: #6b7280;
+
+  /* Density / radius system */
+  --density: 1;
+  /* Meio-termo pedido pelo usuário (2026-08-27): os cantos estavam
+     "parecendo tudo muito pequeno e redondo" — não é pra achatar tudo (0),
+     só reduzir um pouco a curvatura em relação ao 1 original. */
+  --r-scale: 0.75;
+  --r-card: calc(16px * var(--r-scale));
+  --r-btn: calc(10px * var(--r-scale));
+  --r-md: calc(10px * var(--r-scale));
+  --r-sm: calc(6px * var(--r-scale));
+  --r-pill: 999px;
+  --field-h: calc(40px * var(--density));
+  --card-pad: 24px;
+  --row-py: 14px;
+  --section-gap: 20px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 2px rgba(7, 29, 73, 0.04), 0 4px 16px rgba(7, 29, 73, 0.06);
+  --shadow-md: 0 8px 32px rgba(7, 29, 73, 0.14), 0 2px 8px rgba(7, 29, 73, 0.08);
+  --shadow-pop: 0 4px 24px rgba(7, 29, 73, 0.18);
+
+  /* Typography — Satoshi em todo o sistema. */
+  --font-sans: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Legacy layout */
+  --radius-pill: 24px;
+  --radius-card: 16px;
+  --radius-sm: 8px;
+  --page-padding-x: 160px;
+  --navbar-h: 80px;
+  --footer-h: 33px;
+}
+
+/* Animations */
+@keyframes stt-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes stt-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes stt-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  font-family: var(--font-sans);
+  color: var(--navy);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button, input, select, textarea, optgroup,
+code, pre, kbd, samp, tt {
+  font-family: inherit;
+}
+
+[data-tabular], .tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+::selection { background: var(--orange-15); color: var(--text); }
+:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+/* Botões pequenos dentro de listas (ex.: chevron de grupo do apontamento):
+   sem outline-offset, senão o anel flutua solto e parece um elemento
+   quebrado da UI em vez de um indicador de foco. */
+.chevron-toggle:focus-visible { outline-offset: -1px; }
+
+/* ── Componentes de página (usados enquanto o conteúdo não é migrado
+   integralmente pro ui-kit de componentes) ──────────────────────────────── */
+
+.pmo-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--card-pad);
+}
+
+.pmo-input,
+.pmo-select {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  padding: 0 14px;
+  height: var(--field-h);
+  font-size: 13.5px;
+}
+.pmo-input:focus,
+.pmo-select:focus {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 3px var(--orange-15);
+  outline: none;
+}
+.pmo-input::placeholder {
+  color: var(--text-faint);
+}
+
+.pmo-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.2px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.pmo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--r-btn);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.08s, background 0.15s;
+}
+.pmo-btn:active { transform: translateY(1px); }
+.pmo-btn-primary {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: #fff;
+}
+.pmo-btn-secondary {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.pmo-btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+}
+.pmo-btn-danger {
+  background: transparent;
+  color: var(--red);
+}
+
+.pmo-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13.5px;
+}
+.pmo-table th {
+  text-align: left;
+  color: var(--text-faint);
+  font-weight: 700;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.pmo-table td {
+  padding: var(--row-py) 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+.pmo-table tr:last-child td { border-bottom: none; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.badge-green { background: var(--green-15); color: var(--green); }
+.badge-orange { background: var(--orange-15); color: var(--orange); }
+.badge-red { background: var(--red-15); color: var(--red); }
+.badge-gray { background: var(--surface-sunken); color: var(--text-muted); }
+
+.pmo-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--orange), rgba(255, 130, 0, 0.8));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.pmo-progress-track {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+.pmo-progress-fill {
+  height: 100%;
+  background: var(--orange);
+  border-radius: var(--r-pill);
+}

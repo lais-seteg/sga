@@ -1,0 +1,236 @@
+// Schema do SGA Seteg — Sistema de Solicitação de Peças Gráficas.
+//
+// O banco continua sendo o Postgres do Supabase (projeto `sga`), COM os dados
+// que já estavam lá: 136 solicitações e o contador de protocolo em uso. O que
+// mudou é quem fala com ele — não é mais o navegador via PostgREST/RLS, e sim
+// o servidor Next.js via Prisma. A autorização deixou de morar em policies e
+// passou a morar no código (lib/session.ts + cada route handler), no mesmo
+// padrão do ClockRView.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Dois papéis, e só dois. O SGA não tem hierarquia: ou a pessoa abre pedido e
+// acompanha os seus (colaborador), ou ela toca a produção e enxerga tudo
+// (admin — hoje Eveline e Raissa, o antigo perfil "gestor").
+enum Papel {
+  admin
+  colaborador
+}
+
+// O fluxo de produção de uma peça, em ordem. Os quatro primeiros estados vêm
+// da versão anterior (que os guardava numa coluna de texto); os dois novos —
+// `aguardando_aprovacao` e `aprovado` — entraram para que os indicadores do
+// dashboard tenham de onde sair. Sem um estado que signifique "entreguei, a
+// bola está com o solicitante", não existe como separar tempo de produção de
+// tempo de espera, e foi exatamente isso que o PMO pediu para medir.
+enum StatusSolicitacao {
+  na_fila
+  em_andamento
+  /// Peça entregue; aguardando o solicitante avaliar.
+  aguardando_aprovacao
+  /// O solicitante pediu mudança — volta para a equipe. Cada entrada aqui
+  /// conta como um retrabalho.
+  ajustes
+  /// O solicitante aprovou; a equipe fecha os arquivos finais.
+  aprovado
+  concluido
+}
+
+model Usuario {
+  id        String  @id @default(uuid()) @db.Uuid
+  nome      String
+  email     String  @unique
+  senhaHash String  @map("senha_hash")
+  papel     Papel   @default(colaborador)
+  ativo     Boolean @default(true)
+  /// Quem pode abrir a tela /usuarios e criar, editar ou desativar contas.
+  ///
+  /// É uma permissão à parte, e não um nível de papel, por pedido da Seteg:
+  /// Eveline e Raissa são as duas admin da produção (veem tudo, movem a
+  /// fila), mas só Eveline mexe em acessos. Um flag por pessoa resolve isso
+  /// sem inventar um terceiro papel e sem cravar um e-mail no código — se a
+  /// responsabilidade mudar de mãos, é um clique na própria tela.
+  gerenciaAcessos Boolean @default(false) @map("gerencia_acessos")
+  /// Setor/área de quem solicita. Opcional porque a carga inicial de contas
+  /// veio sem essa informação; quando preenchido, o formulário de nova
+  /// solicitação já abre com ele selecionado.
+  setor     String?
+
+  ultimoAcessoEm DateTime? @map("ultimo_acesso_em") @db.Timestamptz
+
+  solicitacoes Solicitacao[]       @relation("SolicitacaoSolicitante")
+  logs         SystemLog[]         @relation("SystemLogUsuario")
+  eventos      SolicitacaoEvento[] @relation("SolicitacaoEventoUsuario")
+
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz
+  atualizadoEm DateTime @updatedAt @map("atualizado_em") @db.Timestamptz
+
+  @@map("usuarios")
+}
+
+model Solicitacao {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Código exibido na tela (SOL-0152). Continua saindo da sequence
+  /// `solicitacoes_id_seq`, que já estava em uso — ver lib/protocolo.ts. Não
+  /// se reinicia a numeração: a contagem segue de onde os 136 pedidos
+  /// históricos pararam.
+  protocolo String @unique @db.VarChar
+
+  /// Dono do pedido. É daqui que sai a regra "cada solicitante só vê as
+  /// suas": colaborador consulta sempre com solicitanteId = sessao.id; admin,
+  /// sem filtro.
+  ///
+  /// Nulo APENAS nos registros históricos cujo `solicitante_nome` digitado à
+  /// mão não corresponde a nenhuma conta atual (ex.: pessoas que saíram da
+  /// Seteg). Esses ficam visíveis só para admin, e a tela mostra o nome
+  /// guardado em `solicitanteNomeLegado`. Todo pedido novo nasce com dono.
+  solicitanteId String?  @map("solicitante_id") @db.Uuid
+  solicitante   Usuario? @relation("SolicitacaoSolicitante", fields: [solicitanteId], references: [id])
+
+  /// O nome como foi DIGITADO na versão antiga do sistema, quando não havia
+  /// login e cada pessoa escrevia o próprio nome num campo livre (daí
+  /// "LAICIA SOUSA NASCIMENTO", "LAICIA NASCIMENTO" e "Laícia Sousa
+  /// Nascimento" convivendo). Preservado para o histórico continuar legível;
+  /// nunca preenchido em pedido novo — nestes o nome vem da conta.
+  solicitanteNomeLegado String? @map("solicitante_nome_legado") @db.VarChar
+
+  solicitanteSetor String @map("solicitante_setor") @db.VarChar
+  /// Código do projeto / cliente, vindo do autocomplete do Clockify.
+  solicitanteCliente String? @map("solicitante_cliente") @db.VarChar
+
+  prazoIdeal  DateTime @map("prazo_ideal") @db.Date
+  prazoLimite DateTime @map("prazo_limite") @db.Date
+
+  urgente               Boolean @default(false)
+  /// Só gravada quando `urgente` é true.
+  urgenciaJustificativa String? @map("urgencia_justificativa")
+
+  tipoMaterial      String  @map("tipo_material") @db.VarChar
+  /// Só gravado quando tipoMaterial == "outro".
+  tipoMaterialOutro String? @map("tipo_material_outro") @db.VarChar
+
+  objetivo         String
+  conteudo         String
+  infoObrigatorias String @map("info_obrigatorias")
+
+  /// Canais de divulgação (instagram, whatsapp, email, impressao, site, outros).
+  formatos      String[]
+  /// Só gravado quando "outros" está entre os formatos.
+  formatoOutros String?  @map("formato_outros") @db.VarChar
+
+  /// Nulos existem só no histórico — a validação de hoje exige os dois.
+  dimensoes String? @db.VarChar
+  paginas   Int?
+
+  identidadeVisual    Boolean @default(false) @map("identidade_visual")
+  /// Só gravado quando identidadeVisual é true.
+  identidadeDiretorio String? @map("identidade_diretorio")
+
+  referenciasDiretorio String? @map("referencias_diretorio")
+  materiaisDiretorio   String? @map("materiais_diretorio")
+  observacoes          String?
+
+  status StatusSolicitacao @default(na_fila)
+
+  /// Trilha de mudanças de estado — é daqui que saem todos os tempos do
+  /// dashboard.
+  eventos SolicitacaoEvento[] @relation("SolicitacaoEventoSolicitacao")
+
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz
+  atualizadoEm DateTime @updatedAt @map("atualizado_em") @db.Timestamptz
+
+  // A listagem ordena por criadoEm desc e filtra por solicitanteId/status.
+  @@index([solicitanteId, criadoEm])
+  @@index([status])
+  @@map("solicitacoes")
+}
+
+// Cada mudança de estado de uma solicitação, com quando e por quem.
+//
+// Existe porque `solicitacoes` guarda só o estado ATUAL: olhando aquela
+// tabela dá para saber que uma peça está "Finalizado", nunca quanto tempo ela
+// passou em produção nem quantas vezes voltou para ajuste. Todos os
+// indicadores de tempo do dashboard são calculados a partir daqui
+// (ver lib/indicadores.ts).
+model SolicitacaoEvento {
+  id             String            @id @default(uuid()) @db.Uuid
+  solicitacaoId  String            @map("solicitacao_id") @db.Uuid
+  solicitacao    Solicitacao       @relation("SolicitacaoEventoSolicitacao", fields: [solicitacaoId], references: [id], onDelete: Cascade)
+  /// Nulo no evento de criação, que não tem estado anterior.
+  statusAnterior StatusSolicitacao? @map("status_anterior")
+  statusNovo     StatusSolicitacao  @map("status_novo")
+  /// Quem mudou. Nulo nos eventos reconstruídos, que não têm autor conhecido.
+  usuarioId      String?           @map("usuario_id") @db.Uuid
+  usuario        Usuario?          @relation("SolicitacaoEventoUsuario", fields: [usuarioId], references: [id])
+
+  /// true nos eventos RECONSTRUÍDOS dos 136 pedidos anteriores a esta tabela
+  /// existir. A data deles é aproximada (veio de `atualizado_em`), então o
+  /// dashboard os aceita em prazo total e cumprimento de prazo, mas os
+  /// descarta no tempo por etapa — onde a aproximação inventaria número.
+  inferido Boolean @default(false)
+
+  criadoEm DateTime @default(now()) @map("criado_em") @db.Timestamptz
+
+  @@index([solicitacaoId, criadoEm])
+  @@map("solicitacao_eventos")
+}
+
+// Auditoria: criação, mudança de status e exclusão. Gravação "melhor
+// esforço" — se o log falhar, a ação que o originou não falha junto
+// (ver lib/log.ts).
+model SystemLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  acao       String?
+  entidade   String?
+  entidadeId String?  @map("entidade_id")
+  /// Quem fez. Nulo nas 53 linhas herdadas da versão sem login.
+  usuarioId  String?  @map("usuario_id") @db.Uuid
+  usuario    Usuario? @relation("SystemLogUsuario", fields: [usuarioId], references: [id])
+  dados      Json     @default("{}")
+  criadoEm   DateTime @default(now()) @map("criado_em") @db.Timestamptz
+
+  @@index([entidade, entidadeId])
+  @@index([criadoEm])
+  @@map("system_logs")
+}
+
+// Projetos e clientes vindos da planilha CLIENTES_ATIVOS, mantida pelo PMO.
+// Alimentam o autocomplete de "Código do Projeto | Cliente" no formulário —
+// função que antes era da integração com o Clockify.
+//
+// Esta tabela é um ESPELHO da planilha, não a fonte de verdade: quem manda é
+// o arquivo, e `npm run importar:projetos` sincroniza (ver
+// scripts/importar-projetos.js). Editar linhas aqui à mão é trabalho perdido,
+// porque a próxima importação sobrescreve.
+model Projeto {
+  /// Código sem o "#" do começo (o "#" é enfeite da planilha): '0189-3-2025'.
+  /// É a chave natural — o que a pessoa escolhe e o que fica gravado em
+  /// `Solicitacao.solicitanteCliente`.
+  codigo   String  @id
+  cliente  String
+  segmento String?
+  projeto  String?
+  escopo   String?
+  lider    String?
+  vendedor String?
+  acesso   String?
+  /// Texto livre, como vem da planilha ('ATIVO', 'STAND BY'...). Não é enum
+  /// de propósito: a planilha é mantida à mão e um valor novo ali não pode
+  /// derrubar a importação inteira.
+  status   String?
+
+  /// Quando esta linha foi vista pela última vez numa importação.
+  atualizadoEm DateTime @default(now()) @map("atualizado_em") @db.Timestamptz
+
+  @@index([cliente])
+  @@map("projetos")
+}

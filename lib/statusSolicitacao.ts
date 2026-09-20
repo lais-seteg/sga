@@ -1,0 +1,101 @@
+import { StatusSolicitacao } from "@prisma/client";
+
+// O fluxo de produção de uma peça: rótulos, cores e o caminho natural entre
+// os estados.
+//
+// Os quatro primeiros vêm da versão anterior do SGA, com a mesma
+// nomenclatura — quem já usa o sistema não precisa reaprender nada. Os dois
+// novos (Aguardando Aprovação e Aprovado) entraram junto com o dashboard: sem
+// eles não há como separar "tempo em que a equipe trabalhou" de "tempo em que
+// a peça ficou parada esperando o solicitante".
+//
+// `kind` alimenta o CFStatusBadge do ui-kit, que conhece um conjunto fixo de
+// chaves; cada status aponta para uma chave existente, escolhida pela cor.
+
+export const STATUS_INFO: Record<
+  StatusSolicitacao,
+  { label: string; kind: string; icon: string; descricao: string }
+> = {
+  na_fila: {
+    label: "Na Fila",
+    kind: "em_validacao", // amarelo
+    icon: "bi-hourglass-split",
+    descricao: "Aguardando a equipe pegar",
+  },
+  em_andamento: {
+    label: "Em Andamento",
+    kind: "standby", // laranja
+    icon: "bi-pencil-fill",
+    descricao: "Em produção pela equipe",
+  },
+  aguardando_aprovacao: {
+    label: "Aguardando Aprovação",
+    kind: "rascunho", // cinza
+    icon: "bi-send-check",
+    descricao: "Entregue; com o solicitante",
+  },
+  ajustes: {
+    label: "Ajuste Pendente",
+    kind: "finalizado", // azul
+    icon: "bi-arrow-counterclockwise",
+    descricao: "Solicitante pediu mudança",
+  },
+  aprovado: {
+    label: "Aprovado",
+    kind: "ativo", // verde claro
+    icon: "bi-hand-thumbs-up",
+    descricao: "Aprovado; fechando arquivos",
+  },
+  concluido: {
+    label: "Finalizado",
+    kind: "aprovado", // verde
+    icon: "bi-check2-circle",
+    descricao: "Concluído e entregue",
+  },
+};
+
+/** Ordem do fluxo. Usada nas pílulas de filtro e na composição do dashboard. */
+export const STATUS_ORDEM: StatusSolicitacao[] = [
+  StatusSolicitacao.na_fila,
+  StatusSolicitacao.em_andamento,
+  StatusSolicitacao.aguardando_aprovacao,
+  StatusSolicitacao.ajustes,
+  StatusSolicitacao.aprovado,
+  StatusSolicitacao.concluido,
+];
+
+/**
+ * O próximo passo natural de cada estado — o que o botão "avançar" faz.
+ *
+ * De `aguardando_aprovacao` saem DOIS caminhos (aprovou ou pediu ajuste), e
+ * quem decide é o solicitante, não o sistema; por isso ali não há um "próximo"
+ * único e a tela oferece as duas saídas lado a lado.
+ *
+ * Isto é um atalho de interface, não uma trava: qualquer admin pode mover uma
+ * solicitação para qualquer estado pelo menu "Mover para". Travar o caminho
+ * criaria mais problema do que resolve — basta um clique errado para a peça
+ * ficar presa num estado sem volta.
+ */
+export const PROXIMO_STATUS: Partial<Record<StatusSolicitacao, StatusSolicitacao>> = {
+  [StatusSolicitacao.na_fila]: StatusSolicitacao.em_andamento,
+  [StatusSolicitacao.em_andamento]: StatusSolicitacao.aguardando_aprovacao,
+  [StatusSolicitacao.ajustes]: StatusSolicitacao.em_andamento,
+  [StatusSolicitacao.aprovado]: StatusSolicitacao.concluido,
+};
+
+/** As duas saídas de "Aguardando Aprovação", que dependem do solicitante. */
+export const SAIDAS_APROVACAO: StatusSolicitacao[] = [
+  StatusSolicitacao.aprovado,
+  StatusSolicitacao.ajustes,
+];
+
+/** Estados em que a peça já saiu das mãos da equipe de produção. */
+export const STATUS_FINAIS: StatusSolicitacao[] = [StatusSolicitacao.concluido];
+
+export function rotuloStatus(status: StatusSolicitacao): string {
+  return STATUS_INFO[status]?.label ?? String(status);
+}
+
+export function isStatusValido(valor: unknown): valor is StatusSolicitacao {
+  return typeof valor === "string" && valor in STATUS_INFO;
+}

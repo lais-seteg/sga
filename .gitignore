@@ -1,34 +1,44 @@
 # ===== Segredos e ambiente =====
-# Nada de credencial versionada. As chaves do projeto ficam em
-# frontend/.env, que nasce a partir de frontend/.env.example.
+# Nada de credencial versionada. As chaves do projeto ficam em .env, que
+# nasce a partir de .env.example.
 .env
 .env.*
 !.env.example
-config.local.js
 *.pem
 *.key
 secrets.json
 
+# ===== Pasta de segredos =====
+# secrets/ guarda material sensivel que NUNCA pode entrar no git: a lista de
+# e-mails e senhas iniciais lida por scripts/seed-usuarios.js, dumps de
+# usuario, chaves rotacionadas. So o README explicativo e versionado.
+secrets/*
+!secrets/README.md
+
 # ===== Node e build =====
 node_modules/
+.next/
+out/
 dist/
-dist-ssr/
 *.local
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .npm
+tsconfig.tsbuildinfo
+next-env.d.ts
 
 # ===== Vercel =====
 .vercel
 
 # ===== Banco e backup =====
-# Nunca subir dump de banco nem cópia de segurança.
+# Nunca subir dump de banco nem copia de seguranca.
 bd/
 backup/
+export-dados.json
 
 # ===== Ferramentas e editores =====
-# O settings.local.json guarda preferências de máquina, não do projeto.
+# O settings.local.json guarda preferencias de maquina, nao do projeto.
 .claude/settings.local.json
 .vscode/
 .idea/
@@ -42,8 +52,8 @@ desktop.ini
 $RECYCLE.BIN/
 .DS_Store
 
-# ===== Temporários e backups =====
-# ~$arquivo.docx é o bloqueio que o Word cria ao abrir os documentos de doc/.
+# ===== Temporarios e backups =====
+# ~$arquivo.docx e o bloqueio que o Word cria ao abrir os documentos de doc/.
 ~$*
 *.bak
 *.tmp

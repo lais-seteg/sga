@@ -1,0 +1,452 @@
+/* Tela de login — cópia literal do padrão Page_Login.css usado no 7Station e
+   no Controle de Folgas (mesma família de módulos Seteg). Adaptações feitas
+   só na página (app/login/page.tsx), nunca aqui. */
+
+:root {
+  --navy: #071d49;
+  --navy-deep: #03102a;
+  --navy-darker: #020a1c;
+  --navy-mid: #061a40;
+  --orange: #ff8200;
+  --orange-soft: #ffb066;
+  --green: #2f9e6e;
+  --bg-cream: #fbf8f1;
+  --text-login: #071d49;
+  --text-muted-login: #6e6553;
+  --text-faint-login: #9a8f78;
+  --border-login: #e6dfce;
+}
+
+.login-page {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg-cream);
+}
+
+/* ═══════════════════ BRAND PANEL (left) ═══════════════════ */
+.lp-brand {
+  flex: 1 1 56%;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 40px 56px;
+  background: var(--navy-deep);
+  color: #fff;
+}
+
+.lp-brand::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 30% 30%, rgba(20,60,140,0.55) 0%, transparent 65%),
+    radial-gradient(ellipse 70% 60% at 70% 80%, rgba(255,130,0,0.16) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 70% at 95% 5%, rgba(60,100,200,0.20) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 35% at 50% 100%, rgba(7,29,73,0.5) 0%, transparent 75%),
+    linear-gradient(160deg, var(--navy-mid) 0%, var(--navy-deep) 60%, var(--navy-darker) 100%);
+  pointer-events: none;
+}
+
+.lp-brand::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px);
+  background-size: 52px 52px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 75% at 50% 50%, black 30%, transparent 85%);
+  mask-image: radial-gradient(ellipse 80% 75% at 50% 50%, black 30%, transparent 85%);
+  pointer-events: none;
+}
+
+.lp-brand-line {
+  position: absolute;
+  top: 0; left: 0;
+  width: 240px; height: 2px;
+  background: linear-gradient(90deg, var(--orange) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.lp-brand-center {
+  flex: 1;
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding-left: 24px;
+}
+
+.lp-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--orange-soft);
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+}
+
+.lp-eyebrow-bar {
+  width: 24px; height: 1.5px;
+  background: var(--orange);
+}
+
+.lp-logo-wrap {
+  position: relative;
+  margin-bottom: 32px;
+  display: inline-block;
+}
+
+.lp-logo-halo-orange {
+  position: absolute;
+  left: -60px; top: -40px;
+  width: 380px; height: 300px;
+  background: radial-gradient(circle, rgba(255,130,0,0.55) 0%, rgba(255,130,0,0.18) 30%, transparent 65%);
+  filter: blur(28px);
+  pointer-events: none;
+  z-index: -1;
+  animation: lp-boltGlow 5s ease-in-out infinite;
+}
+
+.lp-logo-halo-blue {
+  position: absolute;
+  left: 40px; top: -30px;
+  width: 420px; height: 240px;
+  background: radial-gradient(ellipse, rgba(80,140,255,0.28) 0%, transparent 60%);
+  filter: blur(36px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.lp-logo-img {
+  display: block;
+  height: 64px;
+  width: auto;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 6px 28px rgba(255,130,0,0.35));
+  animation: lp-boltFloat 6s ease-in-out infinite;
+}
+
+.lp-tagline {
+  font-size: 36px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -0.8px;
+  line-height: 1.1;
+  max-width: 460px;
+}
+
+.lp-description {
+  font-size: 15px;
+  color: rgba(255,255,255,0.65);
+  margin: 16px 0 0;
+  line-height: 1.55;
+  max-width: 440px;
+  font-weight: 400;
+}
+
+.lp-brand-bottom {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.lp-contacts {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: rgba(255,255,255,0.6);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.lp-contacts a {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.15s;
+}
+
+.lp-contacts a:hover { color: #fff; }
+
+.lp-contacts a i { font-size: 12px; color: var(--orange); }
+
+.lp-contacts-divider {
+  width: 1px; height: 12px;
+  background: rgba(255,255,255,0.12);
+}
+
+.lp-module-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: rgba(255,130,0,0.12);
+  border: 1px solid rgba(255,130,0,0.3);
+  color: var(--orange-soft);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+/* ═══════════════════ FORM PANEL (right) ═══════════════════ */
+.lp-form {
+  flex: 1 1 44%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-cream);
+  padding: 40px 56px;
+}
+
+.lp-form-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  max-width: 420px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.lp-form-inner { width: 100%; }
+
+.lp-form-title {
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--navy);
+  margin: 0;
+  letter-spacing: -0.6px;
+  line-height: 1.15;
+}
+
+.lp-form-subtitle {
+  font-size: 14px;
+  color: var(--text-muted-login);
+  margin: 10px 0 36px;
+  line-height: 1.55;
+}
+
+/* Fields */
+.lp-fields { display: flex; flex-direction: column; gap: 18px; }
+
+.lp-field { display: flex; flex-direction: column; gap: 8px; }
+
+.lp-field-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-login);
+  letter-spacing: 0.2px;
+}
+
+.lp-field-control {
+  display: flex;
+  align-items: center;
+  height: 52px;
+  padding: 0 14px 0 16px;
+  gap: 12px;
+  background: #ffffff;
+  border: 1.5px solid var(--border-login);
+  border-radius: 12px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.lp-field-control:focus-within {
+  border-color: var(--orange);
+  box-shadow: 0 0 0 4px rgba(255,130,0,0.15);
+}
+
+.lp-field-control .lp-field-icon {
+  color: var(--text-faint-login);
+  font-size: 16px;
+  transition: color 0.15s;
+}
+
+.lp-field-control:focus-within .lp-field-icon {
+  color: var(--orange);
+}
+
+.lp-field-control input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-login);
+  font-size: 14.5px;
+  font-weight: 500;
+  font-family: inherit;
+  min-width: 0;
+}
+
+.lp-field-control input[type="password"]:not(:placeholder-shown) {
+  letter-spacing: 2px;
+}
+
+.lp-toggle-eye {
+  background: transparent;
+  border: none;
+  padding: 6px;
+  color: var(--text-faint-login);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: color 0.15s;
+  font-size: 16px;
+}
+
+.lp-toggle-eye:hover { color: var(--text-login); }
+
+/* Submit button */
+.lp-btn-submit {
+  height: 52px;
+  width: 100%;
+  background: var(--navy);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 2px 8px rgba(7,29,73,0.18);
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  margin-top: 8px;
+}
+
+.lp-btn-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(7,29,73,0.28);
+}
+
+.lp-btn-submit:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.lp-btn-submit i { font-size: 16px; transition: transform 0.15s; }
+.lp-btn-submit:hover:not(:disabled) i { transform: translateX(3px); }
+
+/* Error message */
+.lp-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(239,68,68,0.06);
+  border: 1px solid rgba(239,68,68,0.2);
+  font-size: 13px;
+  color: #dc2626;
+}
+
+/* Trust row */
+.lp-trust {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-login);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--text-faint-login);
+  font-weight: 500;
+}
+
+.lp-trust span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lp-trust .i-green { color: var(--green); font-size: 12px; }
+
+/* First access callout */
+.lp-first-access {
+  margin-top: 32px;
+  padding: 16px 18px;
+  background: rgba(255,130,0,0.06);
+  border: 1px solid rgba(255,130,0,0.15);
+  border-radius: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.lp-first-access > i {
+  color: var(--orange);
+  font-size: 15px;
+  margin-top: 1px;
+}
+
+.lp-first-access-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 2px;
+}
+
+.lp-first-access-text {
+  font-size: 12.5px;
+  color: var(--text-muted-login);
+  line-height: 1.5;
+}
+
+.lp-first-access-text a {
+  color: var(--orange);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* Corner brackets */
+.lp-bracket {
+  position: absolute;
+  width: 14px; height: 14px;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.lp-bracket-tl { top: 24px; left: 24px; }
+.lp-bracket-bl { bottom: 24px; left: 24px; transform: rotate(270deg); opacity: 0.4; }
+.lp-bracket-tr { top: 24px; right: 24px; transform: rotate(90deg); }
+.lp-bracket-br { bottom: 24px; right: 24px; transform: rotate(180deg); }
+
+/* Animations */
+@keyframes lp-boltFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes lp-boltGlow {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+/* ═══════════════════ RESPONSIVE ═══════════════════ */
+@media (max-width: 860px) {
+  .login-page { height: auto; min-height: 100vh; flex-direction: column; overflow: auto; }
+  .lp-brand { flex: none; padding: 32px; }
+  .lp-brand-bottom { flex-direction: column; align-items: flex-start; gap: 14px; }
+  .lp-form { flex: none; padding: 32px; }
+}

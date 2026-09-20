@@ -1,68 +1,57 @@
 # SGA Seteg — Sistema de Solicitação de Peças Gráficas
 
-Painel web para abrir, acompanhar e gerenciar pedidos de peças gráficas
-(comunicados, posts, banners, cartazes, apresentações etc.) dentro da Seteg.
+Sistema interno para abrir, acompanhar e produzir pedidos de peças gráficas
+(comunicados, posts, banners, cartazes, apresentações) dentro da Seteg.
 
-Quem solicita preenche um formulário em diálogo e acompanha o andamento na
-tabela; quem gerencia entra com um código de acesso individual e passa cada
-pedido pelos estados de produção.
+**Sistema fechado**: só entra quem tem conta, com e-mail corporativo e senha.
+Cada pessoa vê apenas as próprias solicitações; a equipe de produção (perfil
+Admin) vê todas e move a fila.
+
+Mesmo padrão do [ClockRView](https://github.com/SetegCE/0000-1-2026--clockrview):
+Next.js App Router, TypeScript, Prisma e o 7Station Design System.
 
 ---
 
 ## Sumário
 
-- [Funcionalidades](#funcionalidades)
+- [O que mudou na v2](#o-que-mudou-na-v2)
 - [Stack](#stack)
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Como rodar localmente](#como-rodar-localmente)
 - [Variáveis de ambiente](#variáveis-de-ambiente)
-- [Integrações](#integrações)
-- [Acesso](#acesso)
+- [Acesso e perfis](#acesso-e-perfis)
 - [Modelo de dados](#modelo-de-dados)
 - [Fluxo de status](#fluxo-de-status)
+- [Indicadores](#indicadores)
+- [Integrações](#integrações)
 - [Deploy](#deploy)
 - [Segurança](#segurança)
 
 ---
 
-## Funcionalidades
+## O que mudou na v2
 
-**Para quem solicita**
+A versão 1 era uma página pública em Vite + JavaScript: qualquer pessoa com o
+link via **todas** as solicitações da empresa, e um código de acesso único
+liberava as ações de gestor. A v2 reescreve o sistema no padrão do ClockRView
+e o fecha por conta.
 
-- **Nova solicitação em popup** — o botão `Nova Solicitação` abre um diálogo
-  modal com as 11 seções do formulário. Fecha no `X`, no `Esc` ou clicando
-  fora.
-- **Autocomplete de projeto/cliente** — o campo *Código do Projeto | Cliente*
-  busca os projetos do Clockify. A lista é carregada sob demanda (no máximo
-  uma vez por sessão) e não pesa no carregamento inicial da página.
-- **Campos condicionais** — justificativa de urgência, tipo "outro",
-  formato "outros" e diretório de identidade visual só aparecem quando fazem
-  sentido.
-- **Validação antes do envio** — os campos obrigatórios que faltam são
-  apontados e a página rola até o primeiro deles.
+| | v1 | v2 |
+| --- | --- | --- |
+| Front-end | Vite + JS puro, manipulação de DOM | Next.js 14 (App Router) + React + TypeScript |
+| Acesso | Público; código único de gestor | E-mail e senha, obrigatório para tudo |
+| Sessão | Token em `localStorage` | Cookie `httpOnly` assinado (JWT HS256), 12 h |
+| Quem vê o quê | Todo mundo via tudo | Colaborador vê as suas; Admin vê todas |
+| Autorização | Policies de RLS + RPC no banco | Servidor (`lib/session.ts` + route handlers) |
+| Chaves de API | No bundle (`VITE_*`), visíveis no navegador | Só no servidor |
+| Validação | `required` no HTML | HTML **e** servidor (`validacao.ts`) |
+| Gerenciar acessos | `UPDATE` na mão no SQL Editor | Tela `/usuarios`, restrita a quem tem a permissão |
+| Indicadores de produção | Não existiam | Dashboard em `/dashboard` |
+| Projetos do formulário | API do Clockify, chamada pelo navegador | Planilha CLIENTES_ATIVOS importada para o banco |
 
-**Para quem gerencia**
-
-- **Acesso por código individual** — o botão `Gestor` no topo valida o código
-  pela função `login_sga` do Supabase e devolve um token de sessão. O
-  cabeçalho passa a mostrar o nome de quem entrou.
-- **Ações de status direto na tabela** — Em Andamento, Ajuste Pendente,
-  Finalizado e Excluir, como botões de ícone na coluna AÇÕES. O status atual
-  fica destacado.
-
-**Comuns**
-
-- **Tabela com filtros** — pílulas por status, seletor de setor, busca por
-  texto e paginação (10/20/50 por página).
-- **KPIs na lateral** — total, na fila, em andamento, ajuste pendente e
-  finalizado.
-- **Detalhes em modal** — o "olhinho" abre a solicitação completa.
-- **Tema claro/escuro** — alternado pelo botão no cabeçalho e lembrado entre
-  as visitas.
-- **Notificação no Teams** — cada nova solicitação e cada mudança de status
-  disparam um card via Power Automate.
-- **Auditoria** — criação, mudança de status e exclusão ficam registradas na
-  tabela `system_logs`.
+Os **136 pedidos históricos foram preservados** e religados aos donos — ver
+[Modelo de dados](#modelo-de-dados). A numeração de protocolo também continua
+de onde parou: depois de `SOL-0151` vem `SOL-0152`.
 
 ---
 
@@ -70,282 +59,412 @@ pedido pelos estados de produção.
 
 | Camada | Tecnologia |
 | --- | --- |
-| Front-end | Vite + JavaScript (ES Modules), CSS puro — sem framework de UI |
-| Banco e API | [Supabase](https://supabase.com) (PostgreSQL + PostgREST + RPC) |
-| Fonte | Satoshi, servida pelo próprio site via `@font-face` |
-| Ícones | Font Awesome 6.4 (CDN) + SVG inline |
-| Integrações | Clockify (projetos), Power Automate (Teams) |
+| Front-end | Next.js 14 (App Router), React 18, TypeScript |
+| Estilo | 7Station Design System (tokens + `ui-kit.tsx`), Tailwind para o reset |
+| Banco | Supabase (PostgreSQL), acessado via Prisma |
+| Sessão | `jose` (JWT HS256) em cookie `httpOnly` + `bcryptjs` |
+| Fonte | Satoshi, servida pelo próprio site (`@font-face`) |
+| Ícones | Bootstrap Icons (CDN, carregamento não bloqueante) |
+| Integrações | Power Automate (Teams) |
 | Hospedagem | Vercel |
 
-O cliente do Supabase vem do pacote npm `@supabase/supabase-js` e entra no
-bundle — não há mais `vendor/` nem CDN para ele.
+O Supabase segue sendo o banco — o que mudou é o cliente. Antes o navegador
+falava direto com o PostgREST usando a chave `anon`; agora quem fala com o
+Postgres é o servidor Next.js, via Prisma.
 
 ---
 
 ## Estrutura do projeto
 
-Mesma organização do [SGC Seteg](https://github.com/lais-seteg/sgc-seteg): a
-aplicação inteira mora em `frontend/`, e a raiz guarda só o que é do
-repositório (documentos, espelhamento, deploy).
-
 ```
 .
-├── .github/
-│   └── workflows/
-│       └── espelhar.yml        # Espelha o repo para SetegCE
-├── doc/                        # Documento de referência do formulário (.docx)
-├── frontend/
-│   ├── .env                    # Chaves reais — NÃO versionado
-│   ├── .env.example            # Modelo, com o que cada variável faz
-│   ├── .gitignore
-│   ├── index.html              # Marcação: header, cards, tabela e os três modais
-│   ├── package.json
-│   ├── vite.config.js
-│   ├── vercel.json
-│   ├── public/
-│   │   └── assets/
-│   │       ├── fonts/          # Satoshi (@font-face)
-│   │       └── images/         # Logo e favicon
-│   └── src/
-│       ├── main.js             # Ponto de entrada: carrega CSS e app.js
-│       ├── app.js              # Tela: tabela, filtros, modais, tema, paginação
-│       ├── constants/
-│       │   └── status.js       # Os quatro status válidos, labels e classes
-│       ├── services/
-│       │   ├── supabaseClient.js   # Instância única + token de sessão
-│       │   ├── logService.js       # Auditoria em system_logs
-│       │   ├── clockifyService.js  # Projetos para o autocomplete
-│       │   └── teamsService.js     # Card de notificação no Teams
-│       ├── modules/
-│       │   ├── solicitacoes/
-│       │   │   └── solicitacoesService.js  # Listar, criar, mudar status, excluir
-│       │   └── usuarios/
-│       │       └── usuariosService.js      # Login, logout, sessão
-│       └── styles/
-│           └── style.css       # Estilos, tokens de tema e responsivo
-├── vercel.json                 # Aponta o build da raiz para frontend/
-└── README.md
+├── app/
+│   ├── layout.tsx                  # Shell: fonte, ícones, barra lateral
+│   ├── page.tsx                    # Redireciona para /solicitacoes
+│   ├── login/                      # Tela de login (padrão 7Station)
+│   ├── components/                 # PageLayout, Sidebar e o ui-kit compartilhado
+│   ├── solicitacoes/               # Tela principal: KPIs, filtros, tabela, modais
+│   │   ├── page.tsx                #   Server Component — consulta conforme o papel
+│   │   ├── SolicitacoesClient.tsx  #   Tabela, filtros, paginação, ações
+│   │   ├── NovaSolicitacaoModal.tsx#   Formulário das 11 seções
+│   │   └── DetalheSolicitacao.tsx  #   Modal de detalhes
+│   ├── dashboard/                  # Indicadores de produção (Admin)
+│   ├── usuarios/                   # Gestão de Acessos (só quem tem a permissão)
+│   └── api/
+│       ├── auth/login|logout/      # Sessão
+│       ├── solicitacoes/           # POST, PATCH status, DELETE, validação
+│       ├── usuarios/               # POST, PATCH (inclui troca de senha)
+│       └── (sem integrações externas — projetos vêm da tabela `projetos`)
+├── lib/
+│   ├── prisma.ts, token.ts, auth.ts, session.ts   # Banco e sessão
+│   ├── rateLimit.ts                # Freio de força bruta no login
+│   ├── statusSolicitacao.ts        # Os quatro status, rótulos e cores
+│   ├── solicitacaoListas.ts        # Setores, tipos de material, canais
+│   ├── politicaConta.ts            # Regras de nome, e-mail e senha
+│   ├── protocolo.ts                # Gera SOL-0152, SOL-0153...
+│   ├── projetos.ts                 # Lista do autocomplete (planilha → banco)
+│   ├── indicadores.ts              # Cálculo dos tempos, retrabalho e prazos
+│   ├── log.ts, teams.ts
+├── prisma/
+│   ├── schema.prisma
+│   └── migrations/                 # Migração da v1 para a v2
+├── scripts/
+│   ├── seed-usuarios.js            # Carga inicial de contas
+│   └── importar-projetos.js        # Importa a planilha CLIENTES_ATIVOS
+├── secrets/                        # Credenciais — fora do git (ver abaixo)
+├── public/                         # Logo, favicon, fontes Satoshi
+├── middleware.ts                   # Porteiro de rotas
+└── doc/                            # Documento de referência do formulário
 ```
-
-`src/app.js` cuida só da tela: nada ali fala com o Supabase, o Clockify ou o
-Teams direto. As funções que o `index.html` chama por `onclick` são expostas
-em `window` no fim do `app.js` — como o bundle é um módulo ES, elas não
-seriam globais por conta própria.
-
-Os três modais em `index.html`:
-
-| ID | O que é |
-| --- | --- |
-| `modalFormOverlay` | Formulário de nova solicitação |
-| `modalLoginOverlay` | Acesso do gestor |
-| `modalViewOverlay` | Detalhes da solicitação |
 
 ---
 
 ## Como rodar localmente
 
-Requer Node.js 18+.
+Requer Node.js 20+.
 
 ```bash
-cd frontend
 npm install
-cp .env.example .env   # preencha com as chaves reais
-npm run dev            # http://localhost:3000
+cp .env.example .env    # preencha DATABASE_URL, DIRECT_URL e JWT_SECRET
+npm run dev             # http://localhost:3000
 ```
 
-Outros comandos: `npm run build` (gera `dist/`) e `npm run preview`.
+Outros comandos:
+
+| Comando | O que faz |
+| --- | --- |
+| `npm run build` | Gera o Prisma Client e compila para produção |
+| `npm run seed:usuarios` | Cadastra contas a partir de `secrets/usuarios-iniciais.json` |
+| `npx prisma studio` | Abre o navegador de dados do Prisma |
 
 ---
 
 ## Variáveis de ambiente
 
-Ficam em `frontend/.env`, que está no `.gitignore` e **não deve ser
-commitado**. Os nomes e o que cada uma faz estão em `frontend/.env.example`.
+Ficam em `.env`, que está no `.gitignore` e **não deve ser commitado**. Os
+nomes e o que cada uma faz estão em `.env.example`.
 
-| Variável | Para quê |
-| --- | --- |
-| `VITE_SUPABASE_URL` | Projeto Supabase do SGA |
-| `VITE_SUPABASE_ANON_KEY` | Chave publicável (anon) |
-| `VITE_CLOCKIFY_API_KEY` | Autocomplete de projeto/cliente |
-| `VITE_TEAMS_WEBHOOK_URL` | Card de notificação no Teams |
+| Variável | Para quê | Sem ela |
+| --- | --- | --- |
+| `DATABASE_URL` | Postgres do Supabase, via pooler (porta 6543) | O sistema não sobe |
+| `DIRECT_URL` | Conexão direta (porta 5432), usada pelo `prisma migrate` | Migrations não rodam |
+| `JWT_SECRET` | Assina o cookie de sessão | O boot falha de propósito |
+| `TEAMS_WEBHOOK_URL` | Card de notificação no Teams | A notificação não sai |
+| `APP_URL` | Link do botão "Abrir no SGA" no card | Cai para `VERCEL_URL` |
 
-> Toda variável `VITE_*` é embutida no bundle durante o build e fica visível
-> para quem abrir o site. Use apenas chaves de acesso público/leitura — nunca
-> a `service_role` do Supabase. Ver a seção [Segurança](#segurança).
+> Nenhuma dessas variáveis chega ao navegador. Não existe mais prefixo
+> `VITE_`: todo acesso externo acontece dentro de route handlers.
 
-Sem `VITE_CLOCKIFY_API_KEY` o autocomplete deixa de sugerir; sem
-`VITE_TEAMS_WEBHOOK_URL` a notificação deixa de sair. Nos dois casos o resto
-do sistema funciona normalmente.
+### A pasta `secrets/`
 
----
+`secrets/` guarda o que não pode entrar no git: hoje, o
+`usuarios-iniciais.json` com nome, e-mail, perfil e senha inicial de cada
+pessoa, lido por `npm run seed:usuarios`. O `.gitignore` ignora
+`secrets/*` com exceção do `README.md` explicativo.
 
-## Integrações
-
-**Clockify** — os projetos são buscados apenas quando alguém abre o
-formulário ou começa a digitar no campo de projeto (`garantirProjetosClockify`
-guarda a promessa e reaproveita o resultado durante a sessão).
-
-**Teams** — a notificação é disparada depois que a solicitação é gravada; se
-o webhook falhar, o pedido continua salvo.
+No banco a senha vira hash bcrypt (custo 10) e não há como voltar atrás. Para
+trocar a senha de alguém depois do primeiro seed, use a tela `/usuarios` — não
+o script, que é idempotente e **pula** quem já existe justamente para nunca
+desfazer uma troca de senha feita pela tela.
 
 ---
 
-## Acesso
+## Acesso e perfis
 
-Cada pessoa que gerencia tem o **seu** código, guardado no banco como hash
-bcrypt na tabela `usuarios`. Os dois perfis ativos são de gestor e fazem
-exatamente as mesmas coisas:
+São dois perfis, e só dois:
 
-| Nome | Perfil |
+| Perfil | Pode |
 | --- | --- |
-| Eveline Mesquita | Gestor |
-| Raissa Dias | Gestor |
+| **Colaborador** | Abrir solicitação e acompanhar **as suas** |
+| **Admin** | Tudo isso, mais: ver todas as solicitações, mover a fila, excluir e abrir os indicadores |
 
-O fluxo:
+Hoje o perfil Admin é de **Eveline Andrade Mesquita** e **Raissa Caroline Dias
+Ferreira** — as mesmas duas pessoas que tinham o perfil "gestor" na v1. As
+outras 38 contas são de colaborador.
 
-1. A pessoa digita o código no modal `Gestor`.
-2. A RPC `login_sga` (SECURITY DEFINER) compara o código contra o hash e,
-   se bater, grava uma sessão de **12 horas** na tabela `sessoes` e devolve
-   um token. Código errado leva meio segundo de atraso proposital, para
-   desestimular tentativa em série.
-3. O token fica no `localStorage` e o cliente Supabase o envia no cabeçalho
-   `X-SGA-Token` em toda requisição.
-4. As policies de `UPDATE` e `DELETE` chamam `sga_role_atual()`, que lê esse
-   cabeçalho. **Sem sessão válida, o banco recusa — a checagem não é só de
-   tela.**
+### A permissão de gerenciar acessos
 
-A página sempre abre deslogada: qualquer token que tenha sobrado de uma
-visita anterior é apagado no carregamento.
+Mexer em contas (criar, trocar senha, desativar) **não** é parte do perfil
+Admin: é a permissão `gerenciaAcessos`, marcada por pessoa. Hoje só a
+**Eveline** a tem — a Raissa é Admin da produção e não enxerga a tela
+`/usuarios`.
 
-Para trocar um código ou cadastrar alguém:
+É um flag por conta, e não um terceiro perfil nem um e-mail cravado no código,
+para que a responsabilidade possa mudar de mãos com um clique na própria tela.
+Duas travas protegem a porta de trancar por dentro: ninguém remove a própria
+permissão, e a permissão só existe sobre uma conta Admin (rebaixar alguém a
+colaborador a retira junto).
 
-```sql
--- novo acesso
-insert into public.usuarios (nome, codigo_hash, role)
-values ('Fulano de Tal', extensions.crypt('CODIGO-AQUI', extensions.gen_salt('bf')), 'gestor');
+A regra "cada solicitante só vê as suas" é aplicada na **consulta ao banco**
+(`app/solicitacoes/page.tsx`), não na tela. Se fosse um filtro no cliente, os
+pedidos das outras pessoas ainda teriam sido enviados ao navegador e estariam
+legíveis no payload da página.
 
--- trocar o código de quem já existe
-update public.usuarios
-   set codigo_hash = extensions.crypt('NOVO-CODIGO', extensions.gen_salt('bf'))
- where nome = 'Fulano de Tal';
+Um admin não consegue desativar a própria conta nem remover o próprio perfil
+de administrador: se fosse o último, o sistema ficaria sem ninguém capaz de
+gerenciar acessos e só um acesso direto ao banco destravaria.
 
--- tirar o acesso sem apagar o histórico
-update public.usuarios set ativo = false where nome = 'Fulano de Tal';
-```
+### Cadastrar, editar ou desativar alguém
+
+Pela tela **Gestão de Acessos** (`/usuarios`). O e-mail **não** é editável: ele
+é a identidade da conta e o dono de todas as solicitações já abertas por ela —
+trocá-lo transferiria o histórico de uma pessoa para outra em silêncio. Para
+substituir alguém, desative a conta e crie outra.
+
+Desativar não apaga: as solicitações continuam no histórico, ligadas à pessoa.
 
 ---
 
 ## Modelo de dados
 
-Tabela `solicitacoes` no Supabase, com os campos principais:
+Três tabelas, em `prisma/schema.prisma`.
 
-| Campo | Tipo | Observação |
-| --- | --- | --- |
-| `id`, `protocolo` | identificação | `protocolo` é o código exibido na tabela |
-| `solicitante_nome`, `solicitante_setor`, `solicitante_cliente` | texto | seção 1 do formulário |
-| `prazo_ideal`, `prazo_limite` | data | |
-| `urgente`, `urgencia_justificativa` | booleano / texto | a justificativa só é gravada quando urgente |
-| `tipo_material`, `tipo_material_outro` | texto | |
-| `objetivo`, `conteudo`, `info_obrigatorias` | texto | |
-| `formatos`, `formato_outros` | array / texto | canais de divulgação |
-| `dimensoes`, `paginas` | texto / inteiro | |
-| `identidade_visual`, `identidade_diretorio` | booleano / texto | |
-| `referencias_diretorio`, `materiais_diretorio` | texto | |
-| `observacoes` | texto | |
-| `status` | texto | ver abaixo |
-| `criado_em` | timestamp | ordena a listagem (mais recentes primeiro) |
+**`usuarios`** — nome, e-mail (único), hash da senha, papel, ativo, setor,
+último acesso.
 
-Tabelas de apoio:
+**`solicitacoes`** — os campos das 11 seções do formulário, mais:
 
-| Tabela | Para quê |
+| Campo | Observação |
 | --- | --- |
-| `usuarios` | Nome, papel e hash do código de acesso. RLS ligado e **sem policy**: nenhum cliente lê ou escreve nela direto |
-| `sessoes` | Token de sessão (guardado como sha256) e validade. Mesmas restrições |
-| `system_logs` | Auditoria: criação, mudança de status e exclusão |
+| `protocolo` | `SOL-0152`, da sequence `solicitacoes_id_seq`, contínua com a v1 |
+| `solicitante_id` | FK para `usuarios`. É o que implementa "só vê as suas" |
+| `solicitante_nome_legado` | O nome **digitado à mão** na v1, quando não havia login |
+| `status` | Enum `StatusSolicitacao` — o banco recusa valor fora da lista |
 
-Funções RPC:
+**`system_logs`** — auditoria de criação, mudança de status e exclusão.
+Gravação "melhor esforço": se o log falhar, a ação não falha junto.
 
-| Função | O que faz |
+### O histórico da v1
+
+Os 136 pedidos anteriores foram preservados. Como o solicitante era um campo
+de texto livre, a mesma pessoa aparecia como `LAICIA SOUSA NASCIMENTO`,
+`LAICIA NASCIMENTO` e `Laícia Sousa Nascimento`. A migração
+`20260919000100_religa_historico_ao_solicitante` liga cada pedido ao dono por
+um de-para **explícito** — casar por similaridade juntaria "Juliana Vicente" e
+"JULIANA AQUINO", que são duas pessoas.
+
+- **133 pedidos** ficaram ligados a uma conta;
+- **3 pedidos** (`Henrique Lima`, 2, e `Liana Gomes`, 1) ficaram sem dono:
+  essas pessoas não fazem mais parte da empresa e não terão conta. Continuam
+  no histórico, visíveis **apenas para Admin**, exibindo o nome guardado.
+  Inventar um dono seria atribuir o trabalho de alguém a outra pessoa.
+
+Para adotar um desses pedidos, se a pessoa ganhar conta:
+
+```sql
+UPDATE public.solicitacoes SET solicitante_id = (
+  SELECT id FROM public.usuarios WHERE email = 'fulano@setegce.com'
+) WHERE btrim(solicitante_nome_legado) = 'Nome Como Foi Digitado';
+```
+
+### Tabelas de apoio
+
+| Tabela | O que é |
 | --- | --- |
-| `login_sga(p_codigo)` | Valida o código e abre a sessão |
-| `logout_sga(p_token)` | Derruba a sessão |
-| `sga_role_atual()` | Papel de quem está chamando, lido do `X-SGA-Token` |
+| `backup_pre_v2.*` (schema separado) | Cópia das tabelas antes da migração, tirada em 19/09/2026 |
+| `usuarios_codigos_legado`, `sessoes_legado`, `codigos_acesso_legado` | O esquema de login por código da v1, renomeado |
+
+Nada disso é lido pelo sistema. Podem ser derrubados com `DROP` depois que a
+v2 estiver validada em produção.
 
 ---
 
 ## Fluxo de status
 
-| Status no banco | Rótulo na tela | Cor |
-| --- | --- | --- |
-| `na_fila` | Na Fila | amarelo |
-| `em_andamento` | Em Andamento | laranja |
-| `ajustes` | Ajuste Pendente | azul |
-| `concluido` (ou `finalizado`) | Finalizado | verde |
+```
+Na Fila
+  ↓ equipe pega
+Em Andamento            → tempo de ELABORAÇÃO
+  ↓ entrega para avaliação
+Aguardando Aprovação    → tempo AGUARDANDO O SOLICITANTE
+  ↓ aprovou        ↘ pediu ajuste
+  ↓                 Ajuste Pendente → conta RETRABALHO
+  ↓                      ↓ volta para Em Andamento
+Aprovado                → tempo APROVAÇÃO → FINALIZAÇÃO
+  ↓
+Finalizado
+```
 
-Toda solicitação nasce em `na_fila` — e o banco garante isso: a policy de
-`INSERT` só aceita linha nova com esse status. Só quem tem sessão de gestor
-muda o status depois.
+| Status | Rótulo na tela | Cor | Significado |
+| --- | --- | --- | --- |
+| `na_fila` | Na Fila | amarelo | Aguardando a equipe pegar |
+| `em_andamento` | Em Andamento | laranja | Em produção |
+| `aguardando_aprovacao` | Aguardando Aprovação | cinza | Entregue; com o solicitante |
+| `ajustes` | Ajuste Pendente | azul | Solicitante pediu mudança |
+| `aprovado` | Aprovado | verde-claro | Aprovado; fechando arquivos |
+| `concluido` | Finalizado | verde | Concluído e entregue |
+
+Toda solicitação nasce em `na_fila`, e isso é garantido no servidor: o status
+não é aceito do corpo da requisição na criação. Só Admin move a fila — sem
+isso, um solicitante marcaria o próprio pedido como "Finalizado".
+
+**Os dois estados do meio existem por causa dos indicadores.** Sem um estado
+que signifique "entreguei, a bola está com o solicitante", não há como separar
+tempo de produção de tempo de espera — e era exatamente isso que o PMO pediu
+para medir. O mesmo vale para `aprovado`: sem ele, "tempo entre aprovação e
+finalização" não teria começo.
+
+Na tabela, cada linha mostra o **próximo passo** em destaque e um menu
+"Mover para" com todos os estados. O menu é válvula de escape deliberada: o
+caminho não é travado, porque um clique errado não pode deixar a peça presa
+num estado sem volta.
+
+### Histórico de etapas
+
+Cada mudança de estado grava uma linha em `solicitacao_eventos` — com origem,
+destino, autor e instante — na **mesma escrita** que atualiza a solicitação.
+Se fossem dois comandos, uma falha no meio deixaria o estado sem o evento, e
+os indicadores sairiam errados em silêncio.
+
+Esse histórico não fica só no dashboard. Em cada solicitação:
+
+- a **coluna Tempo** na tabela mostra o tempo total (peça entregue, em verde)
+  ou o tempo corrido desde a abertura (peça em aberto) — e em **vermelho**
+  quando o pedido já passou do prazo limite sem ser entregue, que é a forma de
+  a lista avisar sozinha sem ninguém comparar datas de cabeça;
+- o **modal de detalhes** traz a data de abertura, a de finalização (**com o
+  nome de quem finalizou**), o tempo total e uma **linha do tempo** com cada
+  mudança de status: quando, **por quem**, e quanto tempo a peça ficou naquela
+  etapa. É o "de onde veio esse número" — quando uma peça demora, a pergunta
+  seguinte é sempre "demorou onde?", e logo depois "quem moveu isso?".
+
+O autor de cada passo vem da conta que fez a ação, não de um campo digitado:
+se a Raissa marcar como Finalizado, é o nome dela que fica registrado, e não
+há como atribuir a ação a outra pessoa.
+
+Nos registros herdados da v1, a linha do tempo marca as datas como
+*aproximadas*, pelo mesmo motivo explicado em [Indicadores](#indicadores).
+
+---
+
+## Indicadores
+
+Em `/dashboard`, visível para o perfil **Admin** (Eveline e Raissa). Seis
+indicadores, com filtro de período:
+
+| Indicador | Como é medido |
+| --- | --- |
+| **Prazo total da demanda** | Da abertura até a primeira vez que chegou em Finalizado |
+| **Tempo de elaboração** | Soma dos intervalos em *Em Andamento* |
+| **Aguardando o solicitante** | Soma dos intervalos em *Aguardando Aprovação* |
+| **Aprovação → finalização** | Soma dos intervalos em *Aprovado* |
+| **Retrabalho** | Quantas vezes a peça entrou em *Ajuste Pendente*, e o % de peças que voltaram |
+| **Cumprimento de prazo** | Data de conclusão × `prazo_limite` (e × `prazo_ideal`) |
+
+Mais a composição do tempo médio por etapa, a divisão entre entregues no prazo
+e atrasadas, e um recorte por setor solicitante.
+
+### Duas decisões que moldam os números
+
+**Mediana ao lado da média.** Tempo de atendimento tem cauda longa: um único
+pedido que ficou dois meses parado puxa a média e faz o indicador descrever o
+outlier, não a rotina. A mediana responde "como é um pedido típico"; a média,
+"qual o custo total". O painel mostra a mediana em destaque e a média embaixo.
+
+**O que não dá para medir fica de fora, e o painel diz isso.** Os 136 pedidos
+herdados da v1 não têm trilha de etapas — só data de abertura e de conclusão.
+Eles entram em prazo total e cumprimento de prazo, e ficam **fora** dos tempos
+por etapa e do retrabalho: uma trilha reconstruída não sabe quando a peça
+entrou em produção nem quantas vezes voltou, e contá-la como "zero
+retrabalhos" diluiria o indicador sobre casos em que ele é desconhecido. Um
+aviso no topo do dashboard informa sobre quantos casos cada número fala.
+
+> **Sobre as datas do histórico reconstruído:** a conclusão dos pedidos antigos
+> foi recuperada do log real de mudança de status quando existia (34 casos, a
+> partir de 27/08/2026) e, nos demais, aproximada por `atualizado_em`. Houve um
+> tropeço aqui durante a migração — as atualizações administrativas dispararam
+> o trigger de `atualizado_em` e carimbaram 133 registros com a data de hoje,
+> derrubando o cumprimento de prazo para 7%. As datas originais foram
+> restauradas a partir de `backup_pre_v2` (ver a migration
+> `20260919000400_corrige_datas_do_historico_reconstruido`), e o indicador
+> voltou a 89%.
+
+---
+
+## Integrações
+
+**Projetos e clientes** — o autocomplete de "Código do Projeto | Cliente" é
+alimentado pela tabela `projetos`, espelho da planilha **CLIENTES_ATIVOS**
+mantida pelo PMO. Não há integração externa nem chave de API: a lista está no
+banco, que tanto o ambiente local quanto a Vercel já enxergam.
+
+Para atualizar depois que a planilha mudar, exporte-a como CSV e rode:
+
+```bash
+npm run importar:projetos -- "C:caminhoCLIENTES_ATIVOS.csv"
+npm run importar:projetos -- --simular   # mostra o que faria, sem gravar
+```
+
+Sem argumento, o script procura o arquivo em `~/Downloads`. A importação é
+uma transação só: ou o banco fica idêntico à planilha, ou fica como estava.
+Projeto que sai da planilha sai do autocomplete, mas as solicitações que já
+apontam para ele não são afetadas — o código é gravado como texto, sem chave
+estrangeira, justamente para o histórico não depender de uma lista que muda.
+
+**Teams (Power Automate)** — dispara um card a cada nova solicitação e a cada
+mudança de status. A chamada acontece **depois** da gravação: se o webhook
+falhar, o pedido continua salvo e ninguém vê erro.
 
 ---
 
 ## Deploy
 
-Publicado na Vercel. O build roda dentro de `frontend/`:
+Publicado na Vercel, com deploy a cada push na `main`.
 
-```
-npm run build   →   frontend/dist/
-```
+Ao migrar da v1, confira estes três pontos nas configurações do projeto:
 
-Há dois arquivos de configuração, e a Vercel lê **um** deles, conforme o
-*Root Directory* do projeto:
+1. **Root Directory** — precisa ser a raiz do repositório (a v1 buildava
+   dentro de `frontend/`, pasta que não existe mais).
+2. **Framework Preset** — Next.js (o `vercel.json` já declara).
+3. **Environment Variables** — cadastre as da tabela acima. As antigas
+   `VITE_*` podem ser removidas: não são mais lidas por nada.
 
-| Root Directory | Arquivo lido |
-| --- | --- |
-| raiz do repositório (padrão atual) | `vercel.json` da raiz, que entra em `frontend/` e faz o build |
-| `frontend` | `frontend/vercel.json`, no mesmo formato do SGC |
-
-Qualquer uma das duas configurações funciona; a da raiz existe para o projeto
-já publicado continuar buildando sem precisar mexer nas configurações da
-Vercel. Cada push na branch `main` gera um novo deploy.
+> A região do banco é `sa-east-1` (São Paulo). Vale apontar as funções da
+> Vercel para `gru1` em Settings → Functions, para a latência não atravessar
+> o Atlântico a cada consulta.
 
 ---
 
 ## Segurança
 
-**O que está resolvido**
+**O que a v2 resolveu**
 
-- O código de acesso **nunca sai do servidor**: é comparado dentro da RPC
-  `login_sga`, contra um hash bcrypt. As tabelas `usuarios` e `sessoes` têm
-  RLS ligado e nenhuma policy — não há como lê-las pelo PostgREST.
-- A tabela `solicitacoes` deixou de ter a policy única `Allow all access`
-  (que deixava qualquer visitante alterar e apagar). Agora são quatro, uma
-  por comando:
-
-  | Comando | Quem pode |
-  | --- | --- |
-  | `SELECT` | qualquer um — a tabela é a tela pública do sistema |
-  | `INSERT` | qualquer um, mas a linha tem que nascer em `na_fila` |
-  | `UPDATE` | só com sessão de gestor válida |
-  | `DELETE` | só com sessão de gestor válida |
-
-- A sessão expira em 12 horas e as expiradas são varridas a cada login.
-- As chaves saíram do código-fonte e passaram para `frontend/.env`, fora do
-  versionamento.
+- **O sistema deixou de ser público.** Toda rota passa pelo `middleware.ts`, e
+  cada página e rota de API repete a checagem com o banco.
+- **O PostgREST foi fechado.** A chave `anon` do Supabase é pública por
+  natureza e esteve embutida no bundle da v1 — ela continua existindo e
+  válida. A migração derrubou todas as policies e revogou os `GRANT` de `anon`
+  e `authenticated`: com RLS ligado e nenhuma policy, aquela chave não lê mais
+  nada. Sem esse passo, o login novo seria contornável pela API REST antiga.
+- **A sessão saiu do `localStorage`** e virou cookie `httpOnly` — um XSS não
+  consegue mais roubá-la.
+- **A chave que ia no navegador acabou.** A do Clockify deixou de existir com
+  a integração; a do Teams passou a ser usada só no servidor.
+- **A senha nunca trafega de volta.** O hash não sai do servidor: a tela
+  `/usuarios` usa `select` explícito justamente para o `senhaHash` não entrar
+  no payload da página.
+- **Força bruta tem freio** (`lib/rateLimit.ts`): 5 tentativas erradas por
+  IP + e-mail bloqueiam por 5 minutos. Login com e-mail inexistente, conta
+  inativa e senha errada devolvem a **mesma** mensagem — diferenciar diria a
+  quem tenta adivinhar quais e-mails têm conta.
+- **Validação no servidor**, não só no formulário.
 
 **O que ainda merece atenção**
 
-- A `VITE_SUPABASE_ANON_KEY` é pública por natureza. A proteção real é a RLS
-  descrita acima, não o segredo da chave.
-- `VITE_CLOCKIFY_API_KEY` e `VITE_TEAMS_WEBHOOK_URL` continuam indo para o
-  bundle: toda variável `VITE_*` é embutida no build e quem abrir o
-  código-fonte da página consegue lê-las. Tirá-las do `.env` versionado
-  resolve o histórico do repositório, não a exposição no navegador. O
-  caminho correto é movê-las para uma função serverless (Vercel Functions)
-  que faça as chamadas do lado do servidor.
-- **Essas duas credenciais já estiveram em `script.js`, versionado em
-  repositório.** Elas seguem no histórico do git. Rotacione as duas: gere
-  uma nova API key no Clockify e um novo webhook no Power Automate.
+- **Rotacione o webhook do Teams.** Ele esteve em `script.js` versionado e
+  segue no histórico do git; tirá-lo do código não o invalida. A antiga chave
+  do Clockify também está no histórico — como a Seteg não usa mais o serviço,
+  o ideal é revogá-la na conta em vez de só ignorá-la.
+- **As senhas iniciais foram definidas fora do sistema** e trafegaram em texto
+  puro até chegarem aqui. Vale pedir que cada pessoa troque a sua pela
+  `/usuarios`, ou trocá-las em lote.
+- **O freio de força bruta é por processo.** Vive na memória do Node, então
+  reiniciar zera os contadores e várias instâncias da Vercel não compartilham
+  estado. Freia tentativa trivial, não um atacante determinado.
+- **A política de senha é só de comprimento** (mínimo 6). O piso é 6, e não 8,
+  porque uma das senhas da carga inicial tem 7 caracteres — subir o mínimo
+  tornaria aquela conta impossível de reeditar pela própria tela.
 
 ---
 
-© Seteg – Soluções Geológicas e Ambientais • Versão 1.1.0
+© Seteg – Soluções Geológicas e Ambientais • Versão 2.0.0
