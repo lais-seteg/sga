@@ -1,60 +1,47 @@
-// Limitador de tentativas de login em memória do processo — sem Redis, sem
-// dependência nova, pensado para o estágio atual do produto (um único
-// processo Next.js rodando local ou atrás de um túnel).
+// Freio de tentativas de login, contado no BANCO.
 //
-// Estratégia: bloqueia por combinação IP + email após N falhas consecutivas
-// em uma janela curta. Chave composta (não só IP, não só email) para que:
-// - um atacante testando muitos emails do mesmo IP seja freado por email
-//   (evita username enumeration em massa), e
-// - tentativas de terceiros contra o email de um usuário legítimo, vindas de
-//   outro IP, não bloqueiem o dono real da conta.
+// ── Por que saiu da memória do processo ──────────────────────────────────
 //
-// Limitações conhecidas e aceitas para este estágio do produto:
-// 1. Reiniciar o processo (deploy, crash, restart) zera todos os contadores.
-// 2. Não funciona corretamente com múltiplas instâncias/processos (cluster,
-//    PM2 em modo cluster, várias réplicas) — cada uma teria seu próprio
-//    estado. Hoje o app roda em processo único, então é aceitável.
-// 3. `x-forwarded-for` pode ser falsificado por um cliente se não houver um
-//    proxy reverso confiável na frente sobrescrevendo esse header antes de
-//    chegar à aplicação. No cenário atual (acesso local/túnel, sem proxy
-//    corporativo dedicado) isso é uma limitação aceita — o objetivo aqui é
-//    frear força bruta trivial, não blindar contra um atacante sofisticado
-//    que controla sua própria origem de rede.
+// A versão anterior guardava o contador num `Map` do processo. Isso fazia
+// sentido quando o plano era um servidor Node único, mas o SGA roda na Vercel:
+// cada invocação pode cair numa instância nova, e o contador zerava a cada
+// cold start. Bastava espaçar as tentativas para nunca bater no limite — ou
+// seja, na prática o freio quase não existia, justamente no ambiente em que
+// mais importava. No banco o contador é um só para todas as instâncias.
+//
+// ── O custo ──────────────────────────────────────────────────────────────
+//
+// Duas consultas a mais no caminho do login (uma leitura antes, uma escrita
+// depois) e nenhuma em qualquer outra tela. Login é operação rara — ninguém
+// entra no sistema dez vezes por minuto —, então isso não aparece no uso do
+// dia a dia.
+//
+// ── Por que falha ABERTO ─────────────────────────────────────────────────
+//
+// Se a consulta do freio quebrar, a tentativa é permitida em vez de negada.
+// Um limitador que derruba o login inteiro quando o banco soluça é pior do
+// que limitador nenhum — e não abre brecha real: sem banco, o login também
+// não consegue conferir a senha, então não há o que forçar.
 
-const JANELA_MS = 5 * 60 * 1000; // 5 minutos para acumular tentativas
-const MAX_TENTATIVAS = 5; // tentativas falhas seguidas antes de bloquear
-const BLOQUEIO_MS = 5 * 60 * 1000; // duração do bloqueio
+import { prisma } from "@/lib/prisma";
 
-interface Registro {
-  falhas: number;
-  primeiraFalhaEm: number;
-  bloqueadoAte: number | null;
-}
-
-const registros = new Map<string, Registro>();
-
-/** Limpeza oportunista de entradas expiradas, para não crescer sem limite. */
-function limparExpirados(agora: number): void {
-  for (const [chave, r] of Array.from(registros)) {
-    const bloqueioExpirado = !r.bloqueadoAte || r.bloqueadoAte < agora;
-    const janelaExpirada = agora - r.primeiraFalhaEm > JANELA_MS;
-    if (bloqueioExpirado && janelaExpirada) {
-      registros.delete(chave);
-    }
-  }
-}
+/** Janela para acumular falhas antes de bloquear. */
+const JANELA_MS = 5 * 60 * 1000;
+/** Falhas seguidas até o bloqueio. */
+const MAX_TENTATIVAS = 5;
+/** Duração do bloqueio. */
+const BLOQUEIO_MS = 15 * 60 * 1000;
+/** Registros mais velhos que isto não servem para nada e são varridos. */
+const VALIDADE_REGISTRO_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Extrai um identificador de IP do cliente a partir do header
- * `x-forwarded-for`. Ver limitação (3) no cabeçalho deste arquivo: sem um
- * proxy confiável na frente, este valor pode ser falsificado pelo próprio
- * cliente. Aceitável para o estágio atual.
+ * Extrai o IP do cliente. Na Vercel, `x-forwarded-for` é preenchido pela
+ * borda e o primeiro item é o IP real de quem chamou — diferente de um
+ * servidor exposto direto, onde o cliente poderia forjar o cabeçalho.
  */
 export function obterIpCliente(request: Request): string {
   const xff = request.headers.get("x-forwarded-for");
-  if (xff && xff.trim()) {
-    return xff.split(",")[0].trim();
-  }
+  if (xff && xff.trim()) return xff.split(",")[0].trim();
   return "desconhecido";
 }
 
@@ -64,49 +51,78 @@ function chaveDe(ip: string, email: string): string {
 
 export interface ResultadoLimite {
   bloqueado: boolean;
-  /** Segundos restantes até o bloqueio acabar, presente apenas se bloqueado. */
+  /** Segundos restantes do bloqueio, presente apenas se bloqueado. */
   segundosRestantes?: number;
 }
 
-/** Verifica se a combinação IP+email está atualmente bloqueada. Não registra nada. */
-export function verificarLimite(ip: string, email: string): ResultadoLimite {
-  const agora = Date.now();
-  limparExpirados(agora);
+/** Confere se a combinação IP+e-mail está bloqueada agora. Não registra nada. */
+export async function verificarLimite(ip: string, email: string): Promise<ResultadoLimite> {
+  try {
+    const registro = await prisma.tentativaLogin.findUnique({
+      where: { chave: chaveDe(ip, email) },
+      select: { bloqueadoAte: true },
+    });
+    if (!registro?.bloqueadoAte) return { bloqueado: false };
 
-  const registro = registros.get(chaveDe(ip, email));
-  if (!registro || !registro.bloqueadoAte) {
+    const restanteMs = registro.bloqueadoAte.getTime() - Date.now();
+    if (restanteMs <= 0) return { bloqueado: false };
+
+    return { bloqueado: true, segundosRestantes: Math.ceil(restanteMs / 1000) };
+  } catch (erro) {
+    console.error("[rateLimit] falha ao consultar o freio — liberando a tentativa:", erro);
     return { bloqueado: false };
   }
-  if (registro.bloqueadoAte > agora) {
-    return { bloqueado: true, segundosRestantes: Math.ceil((registro.bloqueadoAte - agora) / 1000) };
-  }
-  return { bloqueado: false };
 }
 
-/** Registra uma tentativa de login que falhou (email/senha inválidos, usuário inativo, etc.). */
-export function registrarFalha(ip: string, email: string): void {
-  const agora = Date.now();
+/** Registra uma tentativa que falhou (e-mail inexistente, conta inativa, senha errada). */
+export async function registrarFalha(ip: string, email: string): Promise<void> {
   const chave = chaveDe(ip, email);
-  let registro = registros.get(chave);
+  const agora = new Date();
 
-  if (!registro || agora - registro.primeiraFalhaEm > JANELA_MS) {
-    registro = { falhas: 0, primeiraFalhaEm: agora, bloqueadoAte: null };
-  }
+  try {
+    const atual = await prisma.tentativaLogin.findUnique({
+      where: { chave },
+      select: { falhas: true, primeiraFalhaEm: true },
+    });
 
-  registro.falhas += 1;
-  if (registro.falhas >= MAX_TENTATIVAS) {
-    registro.bloqueadoAte = agora + BLOQUEIO_MS;
+    // Fora da janela, a contagem recomeça: cinco erros espalhados por um mês
+    // são esquecimento, não ataque.
+    const dentroDaJanela =
+      atual !== null && agora.getTime() - atual.primeiraFalhaEm.getTime() <= JANELA_MS;
+    const falhas = dentroDaJanela ? atual.falhas + 1 : 1;
+    const bloqueadoAte =
+      falhas >= MAX_TENTATIVAS ? new Date(agora.getTime() + BLOQUEIO_MS) : null;
+
+    await prisma.tentativaLogin.upsert({
+      where: { chave },
+      create: { chave, falhas, primeiraFalhaEm: agora, bloqueadoAte },
+      update: {
+        falhas,
+        bloqueadoAte,
+        ...(dentroDaJanela ? {} : { primeiraFalhaEm: agora }),
+      },
+    });
+
+    // Limpeza oportunista, só quando já se está escrevendo: sem isto a tabela
+    // cresceria para sempre com registros que não valem mais nada.
+    await prisma.tentativaLogin.deleteMany({
+      where: { atualizadoEm: { lt: new Date(agora.getTime() - VALIDADE_REGISTRO_MS) } },
+    });
+  } catch (erro) {
+    console.error("[rateLimit] falha ao registrar tentativa:", erro);
   }
-  registros.set(chave, registro);
 }
 
 /**
- * Login bem-sucedido: limpa o contador dessa combinação IP+email.
- * Escolha de design: um acerto reseta o histórico de falhas — não deixamos
- * "dívida" de tentativas erradas anteriores penalizando logins futuros
- * legítimos. O bloqueio em andamento (se já disparado) permanece valendo
- * até expirar, mas esse branch só é alcançado quando não há bloqueio ativo.
+ * Login certo: zera o histórico daquela combinação IP+e-mail.
+ *
+ * Um acerto apaga a dívida de erros anteriores — não faz sentido penalizar
+ * quem digitou errado duas vezes e acertou na terceira.
  */
-export function registrarSucesso(ip: string, email: string): void {
-  registros.delete(chaveDe(ip, email));
+export async function registrarSucesso(ip: string, email: string): Promise<void> {
+  try {
+    await prisma.tentativaLogin.deleteMany({ where: { chave: chaveDe(ip, email) } });
+  } catch (erro) {
+    console.error("[rateLimit] falha ao limpar tentativas:", erro);
+  }
 }

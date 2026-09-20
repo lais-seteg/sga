@@ -555,7 +555,7 @@ export default function UsuariosClient({
             value={senha}
             onChange={setSenha}
             icon="bi-key"
-            hint="Mínimo de 6 caracteres."
+            hint="Mínimo de 12 caracteres — prefira uma frase curta a símbolos."
           />
           <CFSelect label="Perfil" required value={papel} onChange={setPapel} options={PAPEL_OPTIONS} icon="bi-shield" />
           <CFSelect
@@ -665,7 +665,7 @@ export default function UsuariosClient({
             value={senha}
             onChange={setSenha}
             icon="bi-key"
-            hint="Mínimo de 6 caracteres."
+            hint="Mínimo de 12 caracteres — prefira uma frase curta a símbolos."
             autoFocus
           />
         </div>

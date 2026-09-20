@@ -5,6 +5,43 @@ import { obterIpCliente, registrarFalha, registrarSucesso, verificarLimite } fro
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Registra um evento de segurança em `system_logs`.
+ *
+ * Antes isto só ia para `console.warn`. Log de console na Vercel tem
+ * retenção curta e ninguém abre o painel para procurar — na prática, um
+ * ataque de força bruta passaria despercebido. Gravado na mesma tabela de
+ * auditoria do resto, vira algo que dá para consultar com SQL depois
+ * ("quantas tentativas falharam esta semana, e de onde").
+ *
+ * Nunca grava a senha, nem certa nem errada. `usuarioId` fica nulo: quem
+ * falhou o login não tem sessão, e o e-mail pode nem existir.
+ *
+ * Melhor esforço, como o resto da auditoria: uma falha aqui não pode
+ * derrubar o login.
+ */
+async function registrarEventoSeguranca(
+  acao: string,
+  ip: string,
+  email: string,
+  motivo?: string
+): Promise<void> {
+  console.warn(`[SECURITY] ${acao} ip=${ip} email=${email}${motivo ? ` motivo=${motivo}` : ""}`);
+  try {
+    await prisma.systemLog.create({
+      data: {
+        acao,
+        entidade: "auth",
+        entidadeId: null,
+        usuarioId: null,
+        dados: { ip, email, ...(motivo ? { motivo } : {}) },
+      },
+    });
+  } catch (erro) {
+    console.warn("[SECURITY] não foi possível gravar o evento:", erro);
+  }
+}
+
 export async function POST(request: NextRequest) {
   let body: unknown;
   try {
@@ -35,12 +72,12 @@ export async function POST(request: NextRequest) {
   // Freio de força bruta por IP + e-mail. Ver lib/rateLimit.ts para as
   // limitações assumidas (contador em memória do processo, sem Redis).
   const ip = obterIpCliente(request);
-  const limite = verificarLimite(ip, emailNormalizado);
+  const limite = await verificarLimite(ip, emailNormalizado);
   if (limite.bloqueado) {
     // Log estruturado, fácil de encontrar com grep: bloqueio de rate limit é
     // o sinal mais forte de tentativa de força bruta — o próprio app já
     // decidiu que aquele par IP/e-mail passou do limite.
-    console.warn(`[SECURITY] login_bloqueado ip=${ip} email=${emailNormalizado}`);
+    await registrarEventoSeguranca("login_bloqueado", ip, emailNormalizado);
     return NextResponse.json(
       {
         error: `Muitas tentativas com credenciais inválidas. Tente novamente em ${limite.segundosRestantes} segundos.`,
@@ -70,19 +107,24 @@ export async function POST(request: NextRequest) {
   // errada". Diferenciar entregaria a quem tenta adivinhar a informação de
   // quais e-mails têm conta no sistema.
   if (!usuario || !usuario.ativo) {
-    registrarFalha(ip, emailNormalizado);
-    console.warn(`[SECURITY] login_falhou motivo=usuario_invalido ip=${ip} email=${emailNormalizado}`);
+    await registrarFalha(ip, emailNormalizado);
+    await registrarEventoSeguranca(
+      "login_falhou",
+      ip,
+      emailNormalizado,
+      usuario ? "conta_inativa" : "email_inexistente"
+    );
     return NextResponse.json({ error: "E-mail ou senha incorretos." }, { status: 401 });
   }
 
   const senhaOk = await compararSenha(senha, usuario.senhaHash);
   if (!senhaOk) {
-    registrarFalha(ip, emailNormalizado);
-    console.warn(`[SECURITY] login_falhou motivo=senha_incorreta ip=${ip} email=${emailNormalizado}`);
+    await registrarFalha(ip, emailNormalizado);
+    await registrarEventoSeguranca("login_falhou", ip, emailNormalizado, "senha_incorreta");
     return NextResponse.json({ error: "E-mail ou senha incorretos." }, { status: 401 });
   }
 
-  registrarSucesso(ip, emailNormalizado);
+  await registrarSucesso(ip, emailNormalizado);
 
   // "Último acesso" é informação de apoio da tela /usuarios. Falhar aqui não
   // pode impedir um login que já foi validado.

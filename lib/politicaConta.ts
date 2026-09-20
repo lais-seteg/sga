@@ -5,17 +5,24 @@
 // incluindo o próprio `POST` — só para pegar uma constante.
 
 /**
- * Política mínima de senha. Só comprimento: exigir composição (maiúscula,
- * dígito, símbolo) empurra quem administra a inventar senhas previsíveis, e
- * aqui a senha é definida por um admin e entregue à pessoa fora do sistema.
+ * Política mínima de senha: comprimento, e só.
  *
- * O piso é 6 (e não 8) por um motivo concreto: a carga inicial de contas
- * definida pela Seteg inclui uma senha de 7 caracteres. Com o mínimo em 8,
- * essa conta existiria no banco mas não poderia ser reeditada pela própria
- * tela — a validação recusaria a senha que ela já usa.
+ * Exigir composição (maiúscula, dígito, símbolo) empurra quem administra a
+ * inventar senhas previsíveis — "Seteg@2026" satisfaz qualquer regra de
+ * composição e é péssima. Comprimento é o que de fato encarece um ataque, e
+ * 12 caracteres já saem da faixa de força bruta viável.
+ *
+ * O piso começou em 6 para acomodar a carga inicial de contas, que inclui uma
+ * senha de 7 caracteres. Subiu para 12 depois que o sistema entrou em uso.
+ *
+ * Isso NÃO invalida nenhuma senha existente: a regra só é aplicada quando uma
+ * senha é DEFINIDA (criação de conta ou redefinição). Quem já tem uma senha
+ * curta continua entrando normalmente — o ganho aparece a partir da próxima
+ * troca. Para que ele valha para todo mundo de imediato, seria preciso forçar
+ * a troca no primeiro acesso, que é uma decisão de operação, não de código.
  */
-export const SENHA_MIN = 6;
-export const SENHA_MSG = `A senha deve ter no mínimo ${SENHA_MIN} caracteres.`;
+export const SENHA_MIN = 12;
+export const SENHA_MSG = `A senha deve ter no mínimo ${SENHA_MIN} caracteres. Comprimento protege mais que símbolos: uma frase como "banner azul da seteg" é forte e fácil de lembrar.`;
 export const SENHA_MAX = 200;
 
 export const NOME_MAX = 200;

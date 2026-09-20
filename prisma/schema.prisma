@@ -217,6 +217,25 @@ model SystemLog {
   @@map("system_logs")
 }
 
+// Contador de tentativas de login malsucedidas, para frear força bruta.
+//
+// Vive no banco, e não na memória do processo, porque na Vercel cada
+// invocação pode ser uma instância nova: um contador em memória zerava a cada
+// cold start, e bastava espaçar as tentativas para nunca bater no limite.
+model TentativaLogin {
+  /// IP + e-mail. Chave composta de propósito: por e-mail sozinho, alguém de
+  /// fora trancaria a conta de um colega; por IP sozinho, um escritório
+  /// inteiro atrás do mesmo NAT se bloquearia junto.
+  chave           String    @id
+  falhas          Int       @default(0)
+  primeiraFalhaEm DateTime  @default(now()) @map("primeira_falha_em") @db.Timestamptz
+  bloqueadoAte    DateTime? @map("bloqueado_ate") @db.Timestamptz
+  atualizadoEm    DateTime  @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz
+
+  @@index([atualizadoEm])
+  @@map("tentativas_login")
+}
+
 // Projetos e clientes vindos da planilha CLIENTES_ATIVOS, mantida pelo PMO.
 // Alimentam o autocomplete de "Código do Projeto | Cliente" no formulário —
 // função que antes era da integração com o Clockify.
