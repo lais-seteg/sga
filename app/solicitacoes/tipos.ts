@@ -89,4 +89,7 @@ export interface EtapaSolicitacao {
   duracaoDias: number;
   /** true quando a data é reconstruída, e não registrada de verdade. */
   aproximada: boolean;
+  /** O que foi pedido nesta etapa. Só existe nas voltas para Ajuste
+   *  Pendente — é o texto que a equipe lê para saber o que refazer. */
+  observacao: string | null;
 }

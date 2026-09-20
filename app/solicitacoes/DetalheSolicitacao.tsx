@@ -13,6 +13,13 @@ import { formatarDuracao } from "@/lib/indicadores";
 import { EtapaSolicitacao, SolicitacaoLinha } from "./tipos";
 
 export default function DetalheSolicitacao({ solicitacao: s }: { solicitacao: SolicitacaoLinha }) {
+  // A última volta para ajuste. "Última" porque uma peça pode ir e voltar
+  // várias vezes, e o que interessa em destaque é o pedido em aberto — as
+  // rodadas anteriores continuam na linha do tempo.
+  const ajustePendente = [...s.etapas]
+    .reverse()
+    .find((e) => e.status === StatusSolicitacao.ajustes && e.observacao);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {/* Resumo: o que se quer saber sem rolar a página. */}
@@ -71,6 +78,45 @@ export default function DetalheSolicitacao({ solicitacao: s }: { solicitacao: So
         </Resumo>
         <Resumo rotulo="Solicitante">{s.solicitanteNome}</Resumo>
       </div>
+
+      {/* Peça parada em Ajuste Pendente: o que foi pedido é a informação mais
+          acionável do modal, e não deveria exigir rolar até a linha do tempo.
+          Some assim que a peça sai desse estado — aí vira histórico. */}
+      {s.status === StatusSolicitacao.ajustes && ajustePendente && (
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            padding: 14,
+            background: "var(--blue-15)",
+            border: "1px solid color-mix(in oklab, var(--blue) 35%, transparent)",
+            borderRadius: "var(--r-md)",
+          }}
+        >
+          <i
+            className="bi bi-arrow-counterclockwise"
+            style={{ color: "var(--blue)", fontSize: 16, flexShrink: 0 }}
+          />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--blue)", marginBottom: 3 }}>
+              AJUSTES PEDIDOS
+              {ajustePendente.por && (
+                <span style={{ fontWeight: 600, opacity: 0.85 }}> · {ajustePendente.por}</span>
+              )}
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: "var(--text)",
+                whiteSpace: "pre-wrap",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {ajustePendente.observacao}
+            </div>
+          </div>
+        </div>
+      )}
 
       <LinhaDoTempo etapas={s.etapas} />
 
@@ -282,6 +328,29 @@ function LinhaDoTempo({ etapas }: { etapas: EtapaSolicitacao[] }) {
                     />
                     {e.por ?? "autor não registrado"}
                   </div>
+
+                  {/* O que foi pedido nesta volta. Fica dentro da etapa, e não
+                      num campo único da solicitação, porque cada rodada de
+                      ajuste tem o seu texto — é o que explica por que a peça
+                      voltou duas vezes, e o que a equipe lê para refazer. */}
+                  {e.observacao && (
+                    <div
+                      style={{
+                        marginTop: 7,
+                        padding: "9px 12px",
+                        background: "var(--blue-15)",
+                        borderLeft: "3px solid var(--blue)",
+                        borderRadius: "var(--r-sm)",
+                        fontSize: 12.5,
+                        color: "var(--text)",
+                        lineHeight: 1.55,
+                        whiteSpace: "pre-wrap",
+                        overflowWrap: "anywhere",
+                      }}
+                    >
+                      {e.observacao}
+                    </div>
+                  )}
                 </div>
                 <span
                   style={{

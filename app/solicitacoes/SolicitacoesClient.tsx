@@ -10,12 +10,14 @@ import { useRouter } from "next/navigation";
 import { StatusSolicitacao } from "@prisma/client";
 import {
   Btn,
+  CFAlert,
   CFEmptyState,
   CFKpi,
   CFModal,
   CFPageHeader,
   CFPopover,
   CFStatusBadge,
+  CFTextarea,
   Toast,
   ToastTone,
 } from "@/app/components/ui-kit";
@@ -102,6 +104,9 @@ export default function SolicitacoesClient({
   const [respondendo, setRespondendo] = useState<
     { solicitacao: SolicitacaoLinha; acao: "aprovar" | "ajustar" } | null
   >(null);
+  /** Texto do pedido de ajuste. Obrigatório — ver a validação no servidor. */
+  const [textoAjuste, setTextoAjuste] = useState("");
+  const [erroAjuste, setErroAjuste] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: ToastTone } | null>(null);
 
@@ -160,14 +165,18 @@ export default function SolicitacoesClient({
     };
   }
 
-  async function mudarStatus(s: SolicitacaoLinha, status: StatusSolicitacao) {
+  async function mudarStatus(
+    s: SolicitacaoLinha,
+    status: StatusSolicitacao,
+    observacao?: string
+  ) {
     if (s.status === status) return;
     setOcupado(true);
     try {
       const res = await fetch(`/api/solicitacoes/${s.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status, observacao }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -183,14 +192,33 @@ export default function SolicitacoesClient({
     }
   }
 
-  /** Resposta do solicitante: aprovar encerra o pedido, ajustar devolve à
-   *  equipe. Reaproveita `mudarStatus`, que já trata erro e recarrega. */
+  /** Abre o diálogo de resposta, sempre com o campo de ajuste limpo. */
+  function abrirResposta(solicitacao: SolicitacaoLinha, acao: "aprovar" | "ajustar") {
+    setTextoAjuste("");
+    setErroAjuste(null);
+    setRespondendo({ solicitacao, acao });
+  }
+
+  /** Aprovar encerra o pedido; ajustar devolve à equipe com a descrição do
+   *  que precisa mudar. Reaproveita `mudarStatus`, que já trata erro e
+   *  recarrega a lista. */
   async function responderAprovacao() {
     if (!respondendo) return;
-    const destino =
-      respondendo.acao === "aprovar" ? StatusSolicitacao.concluido : StatusSolicitacao.ajustes;
-    await mudarStatus(respondendo.solicitacao, destino);
+
+    if (respondendo.acao === "ajustar") {
+      // Espelha a regra do servidor para o erro aparecer no campo, junto do
+      // que precisa ser corrigido, em vez de voltar como toast genérico.
+      if (!textoAjuste.trim()) {
+        setErroAjuste("Descreva quais ajustes são necessários.");
+        return;
+      }
+      setErroAjuste(null);
+      await mudarStatus(respondendo.solicitacao, StatusSolicitacao.ajustes, textoAjuste.trim());
+    } else {
+      await mudarStatus(respondendo.solicitacao, StatusSolicitacao.concluido);
+    }
     setRespondendo(null);
+    setTextoAjuste("");
   }
 
   async function excluir() {
@@ -446,7 +474,14 @@ export default function SolicitacoesClient({
                               <AcoesDeFila
                                 status={s.status}
                                 ocupado={ocupado}
-                                onMover={(destino) => mudarStatus(s, destino)}
+                                onMover={(destino) =>
+                                  // Ir para "Ajuste Pendente" exige dizer o
+                                  // quê — inclusive vindo da produção. Passa
+                                  // pelo mesmo diálogo do solicitante.
+                                  destino === StatusSolicitacao.ajustes
+                                    ? abrirResposta(s, "ajustar")
+                                    : mudarStatus(s, destino)
+                                }
                               />
                               <BotaoAcao
                                 icone="bi-trash"
@@ -467,13 +502,13 @@ export default function SolicitacoesClient({
                                   titulo="Aprovar e finalizar"
                                   destaque
                                   disabled={ocupado}
-                                  onClick={() => setRespondendo({ solicitacao: s, acao: "aprovar" })}
+                                  onClick={() => abrirResposta(s, "aprovar")}
                                 />
                                 <BotaoAcao
                                   icone="bi-arrow-counterclockwise"
                                   titulo="Solicitar ajustes"
                                   disabled={ocupado}
-                                  onClick={() => setRespondendo({ solicitacao: s, acao: "ajustar" })}
+                                  onClick={() => abrirResposta(s, "ajustar")}
                                 />
                               </>
                             )
@@ -555,19 +590,43 @@ export default function SolicitacoesClient({
           </>
         }
       >
-        <p style={{ fontSize: 13.5, color: "var(--text)", lineHeight: 1.6, margin: 0 }}>
-          {respondendo?.acao === "aprovar" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <p style={{ fontSize: 13.5, color: "var(--text)", lineHeight: 1.6, margin: 0 }}>
+            {respondendo?.acao === "aprovar" ? (
+              <>
+                A peça será marcada como <strong>Finalizada</strong> e o pedido se encerra. A
+                equipe de produção é avisada.
+              </>
+            ) : (
+              <>
+                A peça volta para a equipe como <strong>Ajuste Pendente</strong>. Quando os
+                ajustes forem feitos, ela retorna para a aprovação.
+              </>
+            )}
+          </p>
+
+          {respondendo?.acao === "ajustar" && (
             <>
-              A peça será marcada como <strong>Finalizada</strong> e o pedido se encerra. A equipe
-              de produção é avisada.
-            </>
-          ) : (
-            <>
-              A peça volta para a equipe como <strong>Ajuste Pendente</strong>. Quando os ajustes
-              forem feitos, ela retorna aqui para a sua aprovação.
+              <CFTextarea
+                label="Quais ajustes são necessários?"
+                required
+                rows={5}
+                value={textoAjuste}
+                onChange={(v) => {
+                  setTextoAjuste(v);
+                  if (erroAjuste) setErroAjuste(null);
+                }}
+                placeholder="Ex.: trocar a cor do fundo para o azul da marca, corrigir a data para 15/10 e aumentar a logo."
+                hint="Quanto mais específico, menos idas e vindas — este texto é o que a equipe vai ler para saber o que refazer."
+              />
+              {erroAjuste && (
+                <CFAlert tone="danger" icon="bi-exclamation-circle-fill">
+                  {erroAjuste}
+                </CFAlert>
+              )}
             </>
           )}
-        </p>
+        </div>
       </CFModal>
 
       <CFModal

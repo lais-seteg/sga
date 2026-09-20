@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Papel, Prisma } from "@prisma/client";
+import { Papel, Prisma, StatusSolicitacao } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getUsuarioSessao } from "@/lib/session";
 import { registrarLog } from "@/lib/log";
@@ -8,6 +8,11 @@ import { isStatusValido, rotuloStatus, solicitantePodeMover } from "@/lib/status
 import { rotuloTipoMaterial } from "@/lib/solicitacaoListas";
 
 export const dynamic = "force-dynamic";
+
+/** Folga generosa: a descrição dos ajustes costuma ser um parágrafo, mas
+ *  nada impede alguém de colar uma lista longa. O limite existe só para
+ *  barrar payload absurdo. */
+const OBSERVACAO_MAX = 5000;
 
 /**
  * PATCH /api/solicitacoes/[id] — muda o status.
@@ -38,6 +43,27 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     return NextResponse.json({ error: "Status inválido." }, { status: 400 });
   }
   const novoStatus = body.status;
+
+  // Mover para "Ajuste Pendente" exige dizer O QUE ajustar. Sem isso a peça
+  // volta para a equipe sem informação nenhuma, e o designer descobre que há
+  // retrabalho mas não o que refazer. Vale para qualquer pessoa — solicitante
+  // ou produção — para que toda volta no histórico tenha um motivo legível.
+  const observacaoBruta = typeof body.observacao === "string" ? body.observacao.trim() : "";
+  if (novoStatus === StatusSolicitacao.ajustes && !observacaoBruta) {
+    return NextResponse.json(
+      { error: "Descreva quais ajustes são necessários." },
+      { status: 400 }
+    );
+  }
+  if (observacaoBruta.length > OBSERVACAO_MAX) {
+    return NextResponse.json(
+      { error: `A descrição dos ajustes deve ter no máximo ${OBSERVACAO_MAX} caracteres.` },
+      { status: 400 }
+    );
+  }
+  // Só guarda a observação onde ela significa algo; nas outras transições
+  // viraria texto órfão que a linha do tempo nunca mostra.
+  const observacao = novoStatus === StatusSolicitacao.ajustes ? observacaoBruta : null;
 
   // Precisa do estado ANTERIOR para registrar a transição; sem ele o
   // histórico viraria uma lista de destinos sem origem, e não daria para
@@ -77,6 +103,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
             statusAnterior: antes.status,
             statusNovo: novoStatus,
             usuarioId: sessao.id,
+            observacao,
           },
         },
       },
@@ -104,7 +131,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         { title: "Novo status", value: rotuloStatus(novoStatus) },
         { title: "Atualizado por", value: sessao.nome },
       ],
-      null
+      // A descrição dos ajustes vai no corpo do card: é a informação de que a
+      // equipe precisa para agir, e exigir que abram o sistema para lê-la
+      // anularia metade do motivo de existir a notificação.
+      observacao ? `Ajustes pedidos: ${observacao}` : null
     );
 
     return NextResponse.json({ ok: true, status: solicitacao.status });

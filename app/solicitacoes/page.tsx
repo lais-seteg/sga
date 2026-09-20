@@ -27,6 +27,7 @@ export default async function SolicitacoesPage() {
             statusNovo: true,
             criadoEm: true,
             inferido: true,
+            observacao: true,
             usuario: { select: { nome: true } },
           },
           orderBy: { criadoEm: "asc" },
@@ -62,6 +63,7 @@ export default async function SolicitacoesPage() {
         por: e.usuario?.nome ?? null,
         duracaoDias: Math.max(0, (ate - e.criadoEm.getTime()) / MS_POR_DIA),
         aproximada: e.inferido,
+        observacao: e.observacao,
       };
     });
 

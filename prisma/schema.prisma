@@ -178,6 +178,15 @@ model SolicitacaoEvento {
   /// descarta no tempo por etapa — onde a aproximação inventaria número.
   inferido Boolean @default(false)
 
+  /// O que foi pedido nesta transição. Obrigatório ao mover para `ajustes`
+  /// (sem dizer o que ajustar, a peça volta para a equipe sem informação
+  /// nenhuma); nulo nas demais.
+  ///
+  /// Fica no EVENTO, e não na solicitação, para cada rodada de ajuste manter
+  /// o seu texto — um campo único seria sobrescrito na segunda volta,
+  /// apagando justamente o que explica por que a peça voltou duas vezes.
+  observacao String?
+
   criadoEm DateTime @default(now()) @map("criado_em") @db.Timestamptz
 
   @@index([solicitacaoId, criadoEm])
