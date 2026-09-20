@@ -40,11 +40,20 @@ export const STATUS_INFO: Record<
     icon: "bi-arrow-counterclockwise",
     descricao: "Solicitante pediu mudança",
   },
+  // FORA DO FLUXO. Aprovar passou a finalizar direto — para quem pediu a
+  // peça, "está boa" e "acabou" são a mesma coisa, e um estado intermediário
+  // fazia o pedido parecer pendente depois de resolvido. Some das pílulas,
+  // dos KPIs e do menu por não estar em STATUS_ORDEM.
+  //
+  // O rótulo fica: o valor continua no enum do banco (removê-lo exigiria
+  // recriar o tipo, sem ganho), e se alguma linha aparecer com ele — correção
+  // manual, importação — a tela mostra "Aprovado" em vez de quebrar num
+  // lookup vazio.
   aprovado: {
     label: "Aprovado",
-    kind: "ativo", // verde claro
+    kind: "ativo",
     icon: "bi-hand-thumbs-up",
-    descricao: "Aprovado; fechando arquivos",
+    descricao: "Estado descontinuado",
   },
   concluido: {
     label: "Finalizado",
@@ -66,7 +75,6 @@ export const STATUS_ORDEM: StatusSolicitacao[] = [
   StatusSolicitacao.em_andamento,
   StatusSolicitacao.aguardando_aprovacao,
   StatusSolicitacao.ajustes,
-  StatusSolicitacao.aprovado,
   StatusSolicitacao.concluido,
   StatusSolicitacao.cancelado,
 ];
@@ -87,7 +95,6 @@ export const PROXIMO_STATUS: Partial<Record<StatusSolicitacao, StatusSolicitacao
   [StatusSolicitacao.na_fila]: StatusSolicitacao.em_andamento,
   [StatusSolicitacao.em_andamento]: StatusSolicitacao.aguardando_aprovacao,
   [StatusSolicitacao.ajustes]: StatusSolicitacao.em_andamento,
-  [StatusSolicitacao.aprovado]: StatusSolicitacao.concluido,
 };
 
 /** Estados terminais: a peça saiu da fila e o relógio para. Cancelado entra

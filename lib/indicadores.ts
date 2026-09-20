@@ -3,10 +3,13 @@ import { StatusSolicitacao } from "@prisma/client";
 // Cálculo dos indicadores de produção pedidos pelo PMO:
 //   - tempo de elaboração da peça
 //   - tempo aguardando retorno/aprovação do solicitante
-//   - tempo entre aprovação e finalização
 //   - prazo total da demanda
 //   - quantidade e percentual de retrabalhos
 //   - cumprimento dos prazos estabelecidos
+//
+// "Tempo entre aprovação e finalização" saiu da lista: o fluxo passou a
+// finalizar no mesmo clique em que o solicitante aprova, então os dois
+// marcos viraram o mesmo instante e o intervalo seria sempre zero.
 //
 // Tudo sai da trilha de eventos (`solicitacao_eventos`), nunca do estado
 // atual: olhando só `solicitacoes.status` dá para saber que uma peça está
@@ -53,7 +56,6 @@ export interface TemposPorEtapa {
   em_andamento: number;
   aguardando_aprovacao: number;
   ajustes: number;
-  aprovado: number;
 }
 
 export interface SolicitacaoMedida {
@@ -117,7 +119,6 @@ export function medirSolicitacao(s: SolicitacaoParaCalculo, agora = new Date()):
       em_andamento: 0,
       aguardando_aprovacao: 0,
       ajustes: 0,
-      aprovado: 0,
     };
     for (let i = 0; i < eventos.length; i++) {
       const atual = eventos[i];
@@ -206,7 +207,6 @@ export interface Indicadores {
   prazoTotal: Resumo;
   elaboracao: Resumo;
   aguardandoSolicitante: Resumo;
-  aprovacaoAteFinalizacao: Resumo;
   naFila: Resumo;
   emAjustes: Resumo;
 
@@ -243,7 +243,6 @@ const COR_ETAPA: Record<keyof TemposPorEtapa, { label: string; cor: string }> = 
   em_andamento: { label: "Elaboração", cor: "var(--orange)" },
   aguardando_aprovacao: { label: "Com o solicitante", cor: "var(--text-faint)" },
   ajustes: { label: "Ajustes", cor: "var(--blue)" },
-  aprovado: { label: "Aprovação → entrega", cor: "var(--green)" },
 };
 
 export function calcularIndicadores(medidas: SolicitacaoMedida[]): Indicadores {
@@ -292,7 +291,6 @@ export function calcularIndicadores(medidas: SolicitacaoMedida[]): Indicadores {
     prazoTotal: resumir(finalizadas.map((m) => m.prazoTotal!)),
     elaboracao: tempoDe("em_andamento"),
     aguardandoSolicitante: tempoDe("aguardando_aprovacao"),
-    aprovacaoAteFinalizacao: tempoDe("aprovado"),
     naFila: tempoDe("na_fila"),
     emAjustes: tempoDe("ajustes"),
 

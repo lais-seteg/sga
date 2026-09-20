@@ -2,7 +2,7 @@
 
 // Indicadores de produção das peças gráficas.
 //
-// Os seis números pedidos pelo PMO, e um princípio ao lado de cada um: toda
+// Os números pedidos pelo PMO, e um princípio ao lado de cada um: toda
 // métrica de tempo aparece com MEDIANA e média. Tempo de atendimento tem
 // cauda longa — um pedido que ficou dois meses parado puxa a média e faz o
 // painel descrever o outlier em vez da rotina. A mediana responde "como é um
@@ -113,7 +113,7 @@ export default function DashboardClient({
             </CFAlert>
           )}
 
-          {/* ─── Os seis indicadores ─── */}
+          {/* ─── Os indicadores ─── */}
           <div
             style={{
               display: "grid",
@@ -142,14 +142,6 @@ export default function DashboardClient({
               icone="bi-hourglass-split"
               tom="var(--text-muted)"
             />
-            <CartaoTempo
-              titulo="Aprovação → finalização"
-              descricao="Do aceite ao fechamento"
-              resumo={i.aprovacaoAteFinalizacao}
-              icone="bi-hand-thumbs-up"
-              tom="var(--green)"
-            />
-
             <CartaoNumero
               titulo="Retrabalho"
               icone="bi-arrow-counterclockwise"
