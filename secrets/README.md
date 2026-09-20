@@ -40,3 +40,20 @@ npm run seed:usuarios
   gera e grava a nova senha direto no banco.
 - Se um segredo daqui vazar, rotacione: troque a senha pela tela `/usuarios` e
   gere um novo `JWT_SECRET` (isso derruba todas as sessões abertas).
+
+## Quando apagar o `usuarios-iniciais.json`
+
+Ele existe só para a carga inicial das contas. Depois que **todo mundo já
+entrou pelo menos uma vez**, ele não serve mais para nada e passa a ser
+apenas risco parado no disco — apague o arquivo.
+
+Para saber quem ainda não entrou, a coluna `ultimo_acesso_em` de `usuarios`
+responde (ela também aparece na tela `/usuarios`):
+
+```sql
+select nome, email from usuarios where ultimo_acesso_em is null order by nome;
+```
+
+Enquanto essa consulta devolver linhas, o arquivo ainda é necessário: é dele
+que sai a senha a entregar para quem falta. O hash no banco não volta a ser
+texto.
