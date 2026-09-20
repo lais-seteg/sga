@@ -52,8 +52,9 @@ const SETOR_OPTIONS = [
   ...SETORES.map((s) => ({ value: s as string, label: s as string })),
 ];
 
+// Cabecalho e conteudo centralizados, por pedido da Seteg.
 const TH: React.CSSProperties = {
-  textAlign: "left",
+  textAlign: "center",
   padding: "12px 18px",
   fontSize: 11,
   fontWeight: 700,
@@ -69,6 +70,7 @@ const TD: React.CSSProperties = {
   borderBottom: "1px solid var(--border)",
   color: "var(--text)",
   fontSize: 13.5,
+  textAlign: "center",
 };
 
 function formatarUltimoAcesso(iso: string | null): string {
@@ -243,7 +245,7 @@ export default function UsuariosClient({
   }
 
   return (
-    <div>
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "calc(100vh - 56px)" }}>
       <CFPageHeader
         title="Gestão de Acessos"
         subtitle="Quem entra no SGA, com qual perfil e com qual senha. Desativar bloqueia o acesso sem apagar nada: o cadastro continua na lista e pode ser reativado a qualquer momento. O e-mail é a identidade da conta e não muda."
@@ -329,13 +331,20 @@ export default function UsuariosClient({
           borderRadius: "var(--r-card)",
           boxShadow: "var(--shadow-card)",
           overflow: "hidden",
+          // Cresce para ocupar a altura que sobra, com o rodapé de paginação
+          // ancorado na base — ver o mesmo padrão em SolicitacoesClient.
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 260,
         }}
       >
         {filtrados.length === 0 ? (
-          <CFEmptyState icon="bi-people" title="Nenhuma conta com esses filtros" />
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <CFEmptyState icon="bi-people" title="Nenhuma conta com esses filtros" />
+          </div>
         ) : (
-          <>
-          <div style={{ overflowX: "auto" }}>
+          <div style={{ flex: 1, overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
               <thead>
                 <tr>
@@ -344,14 +353,14 @@ export default function UsuariosClient({
                   <th style={TH}>Perfil</th>
                   <th style={TH}>Pedidos</th>
                   <th style={TH}>Último acesso</th>
-                  <th style={{ ...TH, textAlign: "right" }}>Ações</th>
+                  <th style={TH}>Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {visiveis.map((u) => (
                   <tr key={u.id} style={{ opacity: u.ativo ? 1 : 0.72 }}>
                     <td style={TD}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, minWidth: 0 }}>
                         <span
                           style={{
                             width: 32,
@@ -453,7 +462,7 @@ export default function UsuariosClient({
                     <td style={{ ...TD, fontSize: 12.5, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
                       {formatarUltimoAcesso(u.ultimoAcessoEm)}
                     </td>
-                    <td style={{ ...TD, textAlign: "right", whiteSpace: "nowrap" }}>
+                    <td style={{ ...TD, whiteSpace: "nowrap" }}>
                       <div style={{ display: "inline-flex", gap: 6 }}>
                         <Btn size="sm" variant="secondary" icon="bi-pencil" onClick={() => abrirEdicao(u)}>
                           Editar
@@ -484,22 +493,23 @@ export default function UsuariosClient({
               </tbody>
             </table>
           </div>
-
-          <Paginacao
-            total={filtrados.length}
-            inicio={inicio}
-            quantidade={visiveis.length}
-            pagina={paginaAtual}
-            totalPaginas={totalPaginas}
-            porPagina={porPagina}
-            onPagina={setPagina}
-            onPorPagina={(n) => {
-              setPorPagina(n);
-              setPagina(1);
-            }}
-          />
-          </>
         )}
+
+        {/* Fora do condicional: o rodapé aparece sempre, mesmo com a lista
+            filtrada vazia ou com uma única conta. */}
+        <Paginacao
+          total={filtrados.length}
+          inicio={inicio}
+          quantidade={visiveis.length}
+          pagina={paginaAtual}
+          totalPaginas={totalPaginas}
+          porPagina={porPagina}
+          onPagina={setPagina}
+          onPorPagina={(n) => {
+            setPorPagina(n);
+            setPagina(1);
+          }}
+        />
       </div>
 
       {/* ─── Nova conta ─── */}

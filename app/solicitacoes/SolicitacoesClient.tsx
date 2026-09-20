@@ -29,8 +29,9 @@ import { SolicitacaoLinha } from "./tipos";
 import NovaSolicitacaoModal from "./NovaSolicitacaoModal";
 import DetalheSolicitacao from "./DetalheSolicitacao";
 
+// Cabecalho e conteudo centralizados, por pedido da Seteg.
 const TH: React.CSSProperties = {
-  textAlign: "left",
+  textAlign: "center",
   padding: "12px 18px",
   fontSize: 11,
   fontWeight: 700,
@@ -50,6 +51,7 @@ const TD: React.CSSProperties = {
   borderBottom: "1px solid var(--border)",
   color: "var(--text)",
   fontSize: 13.5,
+  textAlign: "center",
 };
 
 /** Cor de cada KPI, no mesmo semáforo dos selos de status: amarelo enquanto
@@ -196,7 +198,7 @@ export default function SolicitacoesClient({
   }
 
   return (
-    <div>
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "calc(100vh - 56px)" }}>
       <CFPageHeader
         title="Solicitações de Peças Gráficas"
         subtitle={
@@ -329,6 +331,10 @@ export default function SolicitacoesClient({
       </div>
 
       {/* ─── Tabela ─── */}
+      {/* O card cresce para ocupar a altura que sobra (`flex: 1`, com o
+          wrapper da página em coluna). Quem tem um pedido só via uma faixa
+          fina no topo e um vazio embaixo; agora a tabela ocupa a tela e o
+          rodapé de paginação fica ancorado na base. */}
       <div
         style={{
           background: "var(--surface)",
@@ -336,25 +342,30 @@ export default function SolicitacoesClient({
           borderRadius: "var(--r-card)",
           boxShadow: "var(--shadow-card)",
           overflow: "hidden",
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 260,
         }}
       >
         {filtradas.length === 0 ? (
-          <CFEmptyState
-            icon="bi-inbox"
-            title={
-              solicitacoes.length === 0
-                ? "Nenhuma solicitação ainda"
-                : "Nenhuma solicitação com esses filtros"
-            }
-            hint={
-              solicitacoes.length === 0
-                ? "Clique em “Nova solicitação” para abrir o primeiro pedido."
-                : "Tente limpar a busca ou escolher outro status."
-            }
-          />
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <CFEmptyState
+              icon="bi-inbox"
+              title={
+                solicitacoes.length === 0
+                  ? "Nenhuma solicitação ainda"
+                  : "Nenhuma solicitação com esses filtros"
+              }
+              hint={
+                solicitacoes.length === 0
+                  ? "Clique em “Nova solicitação” para abrir o primeiro pedido."
+                  : "Tente limpar a busca ou escolher outro status."
+              }
+            />
+          </div>
         ) : (
-          <>
-            <div style={{ overflowX: "auto" }}>
+          <div style={{ flex: 1, overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: 0 }}>
                 <thead>
                   <tr>
@@ -366,7 +377,7 @@ export default function SolicitacoesClient({
                     <th style={TH}>Prazo ideal</th>
                     <th style={TH}>Status</th>
                     <th style={TH}>Tempo</th>
-                    <th style={{ ...TH, textAlign: "right" }}>Ações</th>
+                    <th style={TH}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -408,7 +419,7 @@ export default function SolicitacoesClient({
                       <td style={{ ...TD, whiteSpace: "nowrap" }}>
                         <CelulaTempo solicitacao={s} />
                       </td>
-                      <td style={{ ...TD, textAlign: "right", whiteSpace: "nowrap" }}>
+                      <td style={{ ...TD, whiteSpace: "nowrap" }}>
                         {/* Com seis estados, um botão por estado viraria uma
                             fileira de sete ícones por linha. Em vez disso: o
                             passo natural em destaque e o resto num menu. */}
@@ -436,23 +447,24 @@ export default function SolicitacoesClient({
                   ))}
                 </tbody>
               </table>
-            </div>
-
-            <Paginacao
-              total={filtradas.length}
-              inicio={inicio}
-              quantidade={visiveis.length}
-              pagina={paginaAtual}
-              totalPaginas={totalPaginas}
-              porPagina={porPagina}
-              onPagina={setPagina}
-              onPorPagina={(n) => {
-                setPorPagina(n);
-                setPagina(1);
-              }}
-            />
-          </>
+          </div>
         )}
+
+        {/* Fora do condicional: o rodapé aparece sempre, inclusive com a lista
+            vazia ou com um único pedido. */}
+        <Paginacao
+          total={filtradas.length}
+          inicio={inicio}
+          quantidade={visiveis.length}
+          pagina={paginaAtual}
+          totalPaginas={totalPaginas}
+          porPagina={porPagina}
+          onPagina={setPagina}
+          onPorPagina={(n) => {
+            setPorPagina(n);
+            setPagina(1);
+          }}
+        />
       </div>
 
       <NovaSolicitacaoModal
@@ -532,7 +544,7 @@ function CelulaTempo({ solicitacao: s }: { solicitacao: SolicitacaoLinha }) {
           ? `Aberta em ${formatDate(s.criadoEm)} — ainda em andamento`
           : `Aberta em ${formatDate(s.criadoEm)}, finalizada em ${formatDate(s.concluidoEm)}`
       }
-      style={{ display: "inline-flex", flexDirection: "column", lineHeight: 1.3 }}
+      style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", lineHeight: 1.3 }}
     >
       <strong
         style={{
@@ -759,7 +771,7 @@ function Canais({ formatos, outros }: { formatos: string[]; outros: string | nul
   }
 
   return (
-    <span style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
+    <span style={{ display: "inline-flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
       {formatos.map((f) => (
         <span
           key={f}

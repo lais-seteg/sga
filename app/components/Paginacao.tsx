@@ -7,6 +7,11 @@
 // comportar igual: mesma contagem "1–10 de 137", mesmos controles, mesmo
 // seletor de itens por página. Duas cópias divergem na primeira vez que
 // alguém ajusta uma delas.
+//
+// O rodapé é SEMPRE renderizado, mesmo com uma única linha ou nenhuma. Some
+// quando a lista é curta, a tabela perdia a base e ficava boiando num vazio;
+// e quem tem um pedido só nunca saberia que existe paginação. Os controles
+// ficam desabilitados quando não há para onde navegar.
 
 export const ITENS_POR_PAGINA_PADRAO = 10;
 const OPCOES_POR_PAGINA = [10, 20, 50];
@@ -72,7 +77,8 @@ export default function Paginacao({
       }}
     >
       <span style={{ fontSize: 12.5, color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
-        {inicio + 1}–{inicio + quantidade} de {total}
+        {/* Com a lista vazia, "1–0 de 0" seria absurdo. */}
+        {total === 0 ? "Nenhum registro" : `${inicio + 1}–${inicio + quantidade} de ${total}`}
       </span>
 
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
