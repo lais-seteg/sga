@@ -359,8 +359,13 @@ export default function UsuariosClient({
               <tbody>
                 {visiveis.map((u) => (
                   <tr key={u.id} style={{ opacity: u.ativo ? 1 : 0.72 }}>
-                    <td style={TD}>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, minWidth: 0 }}>
+                    {/* A única coluna alinhada à esquerda. Nome, e-mail e
+                        avatar são de larguras muito diferentes, e centrados
+                        deixavam a coluna com a borda esquerda serrilhada —
+                        o olho perde a linha ao descer a lista. O cabeçalho
+                        "Colaborador" continua centralizado, como os demais. */}
+                    <td style={{ ...TD, textAlign: "left" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                         <span
                           style={{
                             width: 32,
