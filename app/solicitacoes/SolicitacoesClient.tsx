@@ -12,7 +12,6 @@ import {
   Btn,
   CFAlert,
   CFEmptyState,
-  CFKpi,
   CFModal,
   CFPageHeader,
   CFPopover,
@@ -326,30 +325,36 @@ export default function SolicitacoesClient({
       />
 
       {/* ─── KPIs ─── */}
+      {/* São oito contadores (total + os sete estados). No formato do ui-kit
+          eles quebravam em duas linhas e comiam metade da tela antes da
+          tabela. Aqui vão numa versão compacta: a descrição de cada estado
+          saiu do card e virou `title`, que é o que mais ocupava altura.
+          `auto-fit` com mínimo de 116px mantém tudo numa linha só em tela
+          cheia e ainda deixa quebrar em telas estreitas. */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-          gap: 12,
-          marginBottom: 20,
+          gridTemplateColumns: "repeat(auto-fit, minmax(116px, 1fr))",
+          gap: 8,
+          marginBottom: 16,
         }}
       >
-        <CFKpi
+        <KpiCompacto
           label="Total"
-          value={metricas.total}
-          icon="bi-collection"
-          hint={ehAdmin ? "Todas as peças cadastradas" : "Todas as suas peças"}
+          valor={metricas.total}
+          icone="bi-collection"
+          dica={ehAdmin ? "Todas as peças cadastradas" : "Todas as suas peças"}
         />
-        {/* Um KPI por estado do fluxo, na ordem em que a peça caminha — a
-            leitura da esquerda para a direita mostra onde a fila está presa. */}
+        {/* Um por estado do fluxo, na ordem em que a peça caminha — a leitura
+            da esquerda para a direita mostra onde a fila está presa. */}
         {STATUS_ORDEM.map((s) => (
-          <CFKpi
+          <KpiCompacto
             key={s}
             label={STATUS_INFO[s].label}
-            value={metricas.porStatus[s]}
-            tone={TOM_KPI[s]}
-            icon={STATUS_INFO[s].icon}
-            hint={STATUS_INFO[s].descricao}
+            valor={metricas.porStatus[s]}
+            tom={TOM_KPI[s]}
+            icone={STATUS_INFO[s].icon}
+            dica={STATUS_INFO[s].descricao}
           />
         ))}
       </div>
@@ -740,6 +745,89 @@ export default function SolicitacoesClient({
       </CFModal>
 
       {toast && <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)} />}
+    </div>
+  );
+}
+
+const COR_TOM: Record<string, string> = {
+  ok: "var(--green)",
+  warn: "var(--yellow)",
+  danger: "var(--red)",
+  info: "var(--blue)",
+  accent: "var(--orange)",
+};
+
+/**
+ * Contador compacto da faixa de KPIs.
+ *
+ * É o CFKpi do ui-kit enxugado para caber oito numa linha: o número perde
+ * alguns pontos de corpo, o ícone vira um detalhe ao lado do rótulo em vez
+ * de um selo próprio, e a descrição do estado sai do card para o `title`.
+ * Era a linha de descrição que dobrava a altura — e ela é contexto, não
+ * informação que se lê o tempo todo.
+ *
+ * O número continua em `tabular-nums`: sem isso os valores dançam
+ * lateralmente a cada atualização, porque os dígitos têm larguras
+ * diferentes.
+ */
+function KpiCompacto({
+  label,
+  valor,
+  tom,
+  icone,
+  dica,
+}: {
+  label: string;
+  valor: number;
+  tom?: "ok" | "warn" | "danger" | "info" | "accent";
+  icone?: string;
+  dica?: string;
+}) {
+  const cor = (tom && COR_TOM[tom]) || "var(--text)";
+  return (
+    <div
+      title={dica}
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--r-md)",
+        padding: "9px 11px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 3,
+        minWidth: 0,
+      }}
+    >
+      <span
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: 0.3,
+          textTransform: "uppercase",
+          color: "var(--text-muted)",
+          minWidth: 0,
+        }}
+      >
+        {icone && <i className={`bi ${icone}`} style={{ fontSize: 10.5, color: cor, flexShrink: 0 }} />}
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {label}
+        </span>
+      </span>
+      <span
+        style={{
+          fontSize: 21,
+          fontWeight: 800,
+          lineHeight: 1,
+          letterSpacing: -0.4,
+          color: tom ? cor : "var(--text)",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {valor}
+      </span>
     </div>
   );
 }
