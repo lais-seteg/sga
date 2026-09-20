@@ -22,7 +22,13 @@ import {
   ToastTone,
 } from "@/app/components/ui-kit";
 import { formatDate } from "@/app/components/ui-helpers";
-import { PROXIMO_STATUS, SAIDAS_APROVACAO, STATUS_INFO, STATUS_ORDEM } from "@/lib/statusSolicitacao";
+import {
+  podeCancelar,
+  PROXIMO_STATUS,
+  SAIDAS_APROVACAO,
+  STATUS_INFO,
+  STATUS_ORDEM,
+} from "@/lib/statusSolicitacao";
 import { iconeFormato, rotuloFormato, rotuloTipoMaterial, SETORES } from "@/lib/solicitacaoListas";
 import type { ProjetoOpcao } from "@/lib/projetos";
 import { formatarDuracao } from "@/lib/indicadores";
@@ -66,6 +72,64 @@ const TOM_KPI: Record<StatusSolicitacao, "ok" | "warn" | "danger" | "info" | "ac
   [StatusSolicitacao.ajustes]: "info",
   [StatusSolicitacao.aprovado]: "ok",
   [StatusSolicitacao.concluido]: "ok",
+  [StatusSolicitacao.cancelado]: "danger",
+};
+
+/** As três respostas que o solicitante pode dar sobre a própria peça. */
+type AcaoResposta = "aprovar" | "ajustar" | "cancelar";
+
+/**
+ * Os textos de cada resposta, num lugar só.
+ *
+ * Duas delas pedem justificativa por escrito: "ajustar" porque a equipe
+ * precisa saber o que refazer, e "cancelar" porque um pedido que some da
+ * fila sem motivo registrado vira discussão depois.
+ */
+const TEXTO_ACAO: Record<
+  AcaoResposta,
+  {
+    titulo: string;
+    icone: string;
+    cor: string;
+    botao: string;
+    exigeTexto: boolean;
+    rotuloCampo?: string;
+    placeholder?: string;
+    dica?: string;
+    erro: string;
+  }
+> = {
+  aprovar: {
+    titulo: "Aprovar e finalizar",
+    icone: "bi-check2-circle",
+    cor: "var(--green)",
+    botao: "Aprovar e finalizar",
+    exigeTexto: false,
+    erro: "",
+  },
+  ajustar: {
+    titulo: "Solicitar ajustes",
+    icone: "bi-arrow-counterclockwise",
+    cor: "var(--blue)",
+    botao: "Solicitar ajustes",
+    exigeTexto: true,
+    rotuloCampo: "Quais ajustes são necessários?",
+    placeholder:
+      "Ex.: trocar a cor do fundo para o azul da marca, corrigir a data para 15/10 e aumentar a logo.",
+    dica: "Quanto mais específico, menos idas e vindas — este texto é o que a equipe vai ler para saber o que refazer.",
+    erro: "Descreva quais ajustes são necessários.",
+  },
+  cancelar: {
+    titulo: "Cancelar solicitação",
+    icone: "bi-x-circle",
+    cor: "var(--red)",
+    botao: "Cancelar solicitação",
+    exigeTexto: true,
+    rotuloCampo: "Por que está cancelando?",
+    placeholder: "Ex.: o evento foi adiado sem nova data, a peça não será mais usada.",
+    dica: "O pedido continua na lista, com status Cancelado — cancelar não apaga o histórico.",
+    erro: "Explique o motivo do cancelamento.",
+  },
 };
 
 /** Tira acento e caixa para a busca casar "Inovacao" com "Inovação". */
@@ -102,9 +166,10 @@ export default function SolicitacoesClient({
    *  encerra o pedido e pedir ajuste devolve trabalho para a equipe — os dois
    *  merecem um passo a mais que um clique solto na tabela. */
   const [respondendo, setRespondendo] = useState<
-    { solicitacao: SolicitacaoLinha; acao: "aprovar" | "ajustar" } | null
+    { solicitacao: SolicitacaoLinha; acao: AcaoResposta } | null
   >(null);
-  /** Texto do pedido de ajuste. Obrigatório — ver a validação no servidor. */
+  /** Justificativa do ajuste ou do cancelamento. Obrigatória nos dois — ver a
+   *  validação no servidor. */
   const [textoAjuste, setTextoAjuste] = useState("");
   const [erroAjuste, setErroAjuste] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -192,8 +257,8 @@ export default function SolicitacoesClient({
     }
   }
 
-  /** Abre o diálogo de resposta, sempre com o campo de ajuste limpo. */
-  function abrirResposta(solicitacao: SolicitacaoLinha, acao: "aprovar" | "ajustar") {
+  /** Abre o diálogo de resposta, sempre com o campo de texto limpo. */
+  function abrirResposta(solicitacao: SolicitacaoLinha, acao: AcaoResposta) {
     setTextoAjuste("");
     setErroAjuste(null);
     setRespondendo({ solicitacao, acao });
@@ -204,18 +269,21 @@ export default function SolicitacoesClient({
    *  recarrega a lista. */
   async function responderAprovacao() {
     if (!respondendo) return;
+    const { solicitacao, acao } = respondendo;
 
-    if (respondendo.acao === "ajustar") {
+    if (acao === "aprovar") {
+      await mudarStatus(solicitacao, StatusSolicitacao.concluido);
+    } else {
       // Espelha a regra do servidor para o erro aparecer no campo, junto do
       // que precisa ser corrigido, em vez de voltar como toast genérico.
       if (!textoAjuste.trim()) {
-        setErroAjuste("Descreva quais ajustes são necessários.");
+        setErroAjuste(TEXTO_ACAO[acao].erro);
         return;
       }
       setErroAjuste(null);
-      await mudarStatus(respondendo.solicitacao, StatusSolicitacao.ajustes, textoAjuste.trim());
-    } else {
-      await mudarStatus(respondendo.solicitacao, StatusSolicitacao.concluido);
+      const destino =
+        acao === "cancelar" ? StatusSolicitacao.cancelado : StatusSolicitacao.ajustes;
+      await mudarStatus(solicitacao, destino, textoAjuste.trim());
     }
     setRespondendo(null);
     setTextoAjuste("");
@@ -492,26 +560,39 @@ export default function SolicitacoesClient({
                               />
                             </>
                           ) : (
-                            // A peça voltou para quem pediu: é ele que aprova
-                            // ou manda ajustar. Fora deste estado o
-                            // solicitante só acompanha.
-                            s.status === StatusSolicitacao.aguardando_aprovacao && (
-                              <>
+                            <>
+                              {/* A peça voltou para quem pediu: é ele que
+                                  aprova ou manda ajustar. */}
+                              {s.status === StatusSolicitacao.aguardando_aprovacao && (
+                                <>
+                                  <BotaoAcao
+                                    icone="bi-check2-circle"
+                                    titulo="Aprovar e finalizar"
+                                    destaque
+                                    disabled={ocupado}
+                                    onClick={() => abrirResposta(s, "aprovar")}
+                                  />
+                                  <BotaoAcao
+                                    icone="bi-arrow-counterclockwise"
+                                    titulo="Solicitar ajustes"
+                                    disabled={ocupado}
+                                    onClick={() => abrirResposta(s, "ajustar")}
+                                  />
+                                </>
+                              )}
+                              {/* Desistir vale em qualquer ponto antes do fim:
+                                  melhor cancelar do que a equipe produzir uma
+                                  peça que ninguém vai usar. */}
+                              {podeCancelar(s.status) && (
                                 <BotaoAcao
-                                  icone="bi-check2-circle"
-                                  titulo="Aprovar e finalizar"
-                                  destaque
+                                  icone="bi-x-circle"
+                                  titulo="Cancelar solicitação"
+                                  perigo
                                   disabled={ocupado}
-                                  onClick={() => abrirResposta(s, "aprovar")}
+                                  onClick={() => abrirResposta(s, "cancelar")}
                                 />
-                                <BotaoAcao
-                                  icone="bi-arrow-counterclockwise"
-                                  titulo="Solicitar ajustes"
-                                  disabled={ocupado}
-                                  onClick={() => abrirResposta(s, "ajustar")}
-                                />
-                              </>
-                            )
+                              )}
+                            </>
                           )}
                         </div>
                       </td>
@@ -566,10 +647,10 @@ export default function SolicitacoesClient({
       <CFModal
         open={respondendo !== null}
         onClose={() => setRespondendo(null)}
-        title={respondendo?.acao === "aprovar" ? "Aprovar e finalizar" : "Solicitar ajustes"}
+        title={respondendo ? TEXTO_ACAO[respondendo.acao].titulo : ""}
         hint={respondendo ? `${respondendo.solicitacao.protocolo} · ${rotuloTipoMaterial(respondendo.solicitacao.tipoMaterial, respondendo.solicitacao.tipoMaterialOutro)}` : undefined}
-        icon={respondendo?.acao === "aprovar" ? "bi-check2-circle" : "bi-arrow-counterclockwise"}
-        iconColor={respondendo?.acao === "aprovar" ? "var(--green)" : "var(--blue)"}
+        icon={respondendo ? TEXTO_ACAO[respondendo.acao].icone : undefined}
+        iconColor={respondendo ? TEXTO_ACAO[respondendo.acao].cor : undefined}
         width={480}
         footer={
           <>
@@ -577,38 +658,43 @@ export default function SolicitacoesClient({
               Cancelar
             </Btn>
             <Btn
-              icon={respondendo?.acao === "aprovar" ? "bi-check-lg" : "bi-arrow-counterclockwise"}
+              variant={respondendo?.acao === "cancelar" ? "danger" : "primary"}
+              icon={respondendo ? TEXTO_ACAO[respondendo.acao].icone : undefined}
               onClick={responderAprovacao}
               disabled={ocupado}
             >
-              {ocupado
-                ? "Enviando..."
-                : respondendo?.acao === "aprovar"
-                  ? "Aprovar e finalizar"
-                  : "Solicitar ajustes"}
+              {ocupado ? "Enviando..." : respondendo ? TEXTO_ACAO[respondendo.acao].botao : ""}
             </Btn>
           </>
         }
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <p style={{ fontSize: 13.5, color: "var(--text)", lineHeight: 1.6, margin: 0 }}>
-            {respondendo?.acao === "aprovar" ? (
+            {respondendo?.acao === "aprovar" && (
               <>
                 A peça será marcada como <strong>Finalizada</strong> e o pedido se encerra. A
                 equipe de produção é avisada.
               </>
-            ) : (
+            )}
+            {respondendo?.acao === "ajustar" && (
               <>
                 A peça volta para a equipe como <strong>Ajuste Pendente</strong>. Quando os
                 ajustes forem feitos, ela retorna para a aprovação.
               </>
             )}
+            {respondendo?.acao === "cancelar" && (
+              <>
+                O pedido passa a <strong>Cancelado</strong> e sai da fila de produção. Ele{" "}
+                <strong>continua na sua lista</strong>, com o motivo registrado — cancelar não
+                apaga nada.
+              </>
+            )}
           </p>
 
-          {respondendo?.acao === "ajustar" && (
+          {respondendo && TEXTO_ACAO[respondendo.acao].exigeTexto && (
             <>
               <CFTextarea
-                label="Quais ajustes são necessários?"
+                label={TEXTO_ACAO[respondendo.acao].rotuloCampo ?? ""}
                 required
                 rows={5}
                 value={textoAjuste}
@@ -616,8 +702,8 @@ export default function SolicitacoesClient({
                   setTextoAjuste(v);
                   if (erroAjuste) setErroAjuste(null);
                 }}
-                placeholder="Ex.: trocar a cor do fundo para o azul da marca, corrigir a data para 15/10 e aumentar a logo."
-                hint="Quanto mais específico, menos idas e vindas — este texto é o que a equipe vai ler para saber o que refazer."
+                placeholder={TEXTO_ACAO[respondendo.acao].placeholder}
+                hint={TEXTO_ACAO[respondendo.acao].dica}
               />
               {erroAjuste && (
                 <CFAlert tone="danger" icon="bi-exclamation-circle-fill">

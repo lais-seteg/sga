@@ -52,6 +52,12 @@ export const STATUS_INFO: Record<
     icon: "bi-check2-circle",
     descricao: "Concluído e entregue",
   },
+  cancelado: {
+    label: "Cancelado",
+    kind: "cancelado", // vermelho
+    icon: "bi-x-circle",
+    descricao: "Solicitante desistiu",
+  },
 };
 
 /** Ordem do fluxo. Usada nas pílulas de filtro e na composição do dashboard. */
@@ -62,6 +68,7 @@ export const STATUS_ORDEM: StatusSolicitacao[] = [
   StatusSolicitacao.ajustes,
   StatusSolicitacao.aprovado,
   StatusSolicitacao.concluido,
+  StatusSolicitacao.cancelado,
 ];
 
 /**
@@ -83,6 +90,13 @@ export const PROXIMO_STATUS: Partial<Record<StatusSolicitacao, StatusSolicitacao
   [StatusSolicitacao.aprovado]: StatusSolicitacao.concluido,
 };
 
+/** Estados terminais: a peça saiu da fila e o relógio para. Cancelado entra
+ *  aqui junto com Finalizado — os dois encerram o pedido, mesmo que por
+ *  motivos opostos. */
+export const STATUS_FINAIS: StatusSolicitacao[] = [
+  StatusSolicitacao.concluido,
+  StatusSolicitacao.cancelado,
+];
 /**
  * As duas saídas de "Aguardando Aprovação" — e quem decide é o SOLICITANTE,
  * não a equipe de produção.
@@ -110,14 +124,25 @@ export function solicitantePodeMover(
   statusAtual: StatusSolicitacao,
   destino: StatusSolicitacao
 ): boolean {
-  return (
+  // Responder à aprovação da própria peça.
+  if (
     statusAtual === StatusSolicitacao.aguardando_aprovacao &&
     SAIDAS_APROVACAO.includes(destino)
-  );
+  ) {
+    return true;
+  }
+  // Desistir do pedido, enquanto ele não terminou. Quem pediu pode deixar de
+  // precisar — e é melhor ele cancelar do que a equipe produzir uma peça que
+  // ninguém vai usar. Depois de finalizado ou já cancelado não há o que
+  // desistir.
+  return destino === StatusSolicitacao.cancelado && !STATUS_FINAIS.includes(statusAtual);
 }
 
-/** Estados em que a peça já saiu das mãos da equipe de produção. */
-export const STATUS_FINAIS: StatusSolicitacao[] = [StatusSolicitacao.concluido];
+/** O solicitante pode desistir enquanto a peça não terminou. */
+export function podeCancelar(statusAtual: StatusSolicitacao): boolean {
+  return !STATUS_FINAIS.includes(statusAtual);
+}
+
 
 export function rotuloStatus(status: StatusSolicitacao): string {
   return STATUS_INFO[status]?.label ?? String(status);

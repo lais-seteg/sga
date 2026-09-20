@@ -241,6 +241,10 @@ export default function DashboardClient({
                 segmentos={[
                   { label: "Finalizadas", valor: i.finalizadas, cor: "var(--green)" },
                   { label: "Em aberto", valor: i.emAberto, cor: "var(--orange)" },
+                  // Canceladas em faixa própria: somá-las a "em aberto" diria
+                  // que alguém ainda espera por elas, e somá-las a
+                  // "finalizadas" diria que viraram peça.
+                  { label: "Canceladas", valor: i.canceladas, cor: "var(--red)" },
                 ]}
                 formatar={(v) => `${v}`}
               />

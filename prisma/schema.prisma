@@ -42,6 +42,11 @@ enum StatusSolicitacao {
   /// O solicitante aprovou; a equipe fecha os arquivos finais.
   aprovado
   concluido
+  /// Desistência do solicitante. A peça continua na lista — cancelar não é
+  /// apagar: o pedido existiu, consumiu fila e às vezes produção, e some da
+  /// vista significaria perder esse registro. A justificativa fica no evento
+  /// da transição.
+  cancelado
 }
 
 model Usuario {

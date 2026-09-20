@@ -20,6 +20,11 @@ export default function DetalheSolicitacao({ solicitacao: s }: { solicitacao: So
     .reverse()
     .find((e) => e.status === StatusSolicitacao.ajustes && e.observacao);
 
+  // Motivo do cancelamento, quando é esse o estado atual.
+  const cancelamento = [...s.etapas]
+    .reverse()
+    .find((e) => e.status === StatusSolicitacao.cancelado && e.observacao);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {/* Resumo: o que se quer saber sem rolar a página. */}
@@ -113,6 +118,44 @@ export default function DetalheSolicitacao({ solicitacao: s }: { solicitacao: So
               }}
             >
               {ajustePendente.observacao}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pedido cancelado: o motivo é o que explica por que a peça não
+          existe, e precisa estar no topo — não enterrado na linha do tempo. */}
+      {s.status === StatusSolicitacao.cancelado && cancelamento && (
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            padding: 14,
+            background: "var(--red-15)",
+            border: "1px solid color-mix(in oklab, var(--red) 35%, transparent)",
+            borderRadius: "var(--r-md)",
+          }}
+        >
+          <i className="bi bi-x-circle" style={{ color: "var(--red)", fontSize: 16, flexShrink: 0 }} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 800, color: "var(--red)", marginBottom: 3 }}>
+              CANCELADA
+              {cancelamento.por && (
+                <span style={{ fontWeight: 600, opacity: 0.85 }}> · {cancelamento.por}</span>
+              )}
+              <span style={{ fontWeight: 600, opacity: 0.85 }}>
+                {" "}· {formatarDataHora(cancelamento.em)}
+              </span>
+            </div>
+            <div
+              style={{
+                fontSize: 13,
+                color: "var(--text)",
+                whiteSpace: "pre-wrap",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {cancelamento.observacao}
             </div>
           </div>
         </div>

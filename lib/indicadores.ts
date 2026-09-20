@@ -73,6 +73,10 @@ export interface SolicitacaoMedida {
   diasDeAtraso: number | null;
   /** true quando o histórico é reconstruído, e não registrado de verdade. */
   aproximada: boolean;
+  /** Pedido cancelado pelo solicitante. Não é "em aberto" nem "entregue":
+   *  sai da fila sem virar peça, e por isso não entra em prazo de entrega
+   *  nem em cumprimento de prazo. */
+  cancelada: boolean;
 }
 
 function dias(de: Date, ate: Date): number {
@@ -97,6 +101,11 @@ export function medirSolicitacao(s: SolicitacaoParaCalculo, agora = new Date()):
   const eventoConclusao = eventos.find((e) => e.statusNovo === StatusSolicitacao.concluido);
   const prazoTotal = eventoConclusao ? dias(s.criadoEm, eventoConclusao.criadoEm) : null;
 
+  // Cancelado encerra o pedido sem entrega. Não entra em prazo total nem em
+  // cumprimento de prazo — medir "atraso" de uma peça que ninguém quis mais
+  // seria penalizar a equipe por uma decisão que não foi dela.
+  const eventoCancelamento = eventos.find((e) => e.statusNovo === StatusSolicitacao.cancelado);
+
   // Cada entrada em `ajustes` é uma volta: o solicitante olhou e pediu
   // mudança. Zero significa aprovado de primeira.
   const retrabalhos = eventos.filter((e) => e.statusNovo === StatusSolicitacao.ajustes).length;
@@ -113,9 +122,14 @@ export function medirSolicitacao(s: SolicitacaoParaCalculo, agora = new Date()):
     for (let i = 0; i < eventos.length; i++) {
       const atual = eventos[i];
       const proximo = eventos[i + 1];
-      // Depois de concluído o relógio para: o tempo desde a entrega não é
-      // tempo de atendimento de ninguém.
-      if (atual.statusNovo === StatusSolicitacao.concluido) break;
+      // Depois de encerrado — entregue ou cancelado — o relógio para: o
+      // tempo desde então não é tempo de atendimento de ninguém.
+      if (
+        atual.statusNovo === StatusSolicitacao.concluido ||
+        atual.statusNovo === StatusSolicitacao.cancelado
+      ) {
+        break;
+      }
       const fim = proximo ? proximo.criadoEm : agora;
       const etapa = atual.statusNovo as keyof TemposPorEtapa;
       if (etapa in acumulado) acumulado[etapa] += dias(atual.criadoEm, fim);
@@ -149,6 +163,7 @@ export function medirSolicitacao(s: SolicitacaoParaCalculo, agora = new Date()):
     dentroDoPrazoIdeal,
     diasDeAtraso,
     aproximada,
+    cancelada: eventoCancelamento !== undefined,
   };
 }
 
@@ -180,7 +195,9 @@ export interface Indicadores {
   /** Quantas solicitações entraram no recorte. */
   total: number;
   finalizadas: number;
+  /** Ainda em andamento. NÃO inclui as canceladas: elas saíram da fila. */
   emAberto: number;
+  canceladas: number;
   /** Com histórico real de etapas — base dos tempos por etapa. */
   comHistoricoReal: number;
   /** Herdadas da versão sem histórico — entram só em prazo e cumprimento. */
@@ -232,6 +249,7 @@ const COR_ETAPA: Record<keyof TemposPorEtapa, { label: string; cor: string }> = 
 export function calcularIndicadores(medidas: SolicitacaoMedida[]): Indicadores {
   const comHistorico = medidas.filter((m) => m.tempos !== null);
   const finalizadas = medidas.filter((m) => m.prazoTotal !== null);
+  const canceladas = medidas.filter((m) => m.cancelada);
   const avaliadas = medidas.filter((m) => m.dentroDoPrazoLimite !== null);
 
   const tempoDe = (etapa: keyof TemposPorEtapa) =>
@@ -264,7 +282,10 @@ export function calcularIndicadores(medidas: SolicitacaoMedida[]): Indicadores {
   return {
     total: medidas.length,
     finalizadas: finalizadas.length,
-    emAberto: medidas.length - finalizadas.length,
+    // Cancelada não é "em aberto": ninguém está esperando por ela. Somá-la
+    // aqui inflaria para sempre o número de pedidos pendentes.
+    emAberto: medidas.length - finalizadas.length - canceladas.length,
+    canceladas: canceladas.length,
     comHistoricoReal: comHistorico.length,
     aproximadas: medidas.filter((m) => m.aproximada).length,
 

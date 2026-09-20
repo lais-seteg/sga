@@ -44,26 +44,41 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
   const novoStatus = body.status;
 
-  // Mover para "Ajuste Pendente" exige dizer O QUE ajustar. Sem isso a peça
-  // volta para a equipe sem informação nenhuma, e o designer descobre que há
-  // retrabalho mas não o que refazer. Vale para qualquer pessoa — solicitante
-  // ou produção — para que toda volta no histórico tenha um motivo legível.
+  // Duas transições exigem explicação por escrito:
+  //
+  // - "Ajuste Pendente": sem dizer O QUE ajustar, a peça volta para a equipe
+  //   sem informação nenhuma, e o designer descobre que há retrabalho mas não
+  //   o que refazer.
+  // - "Cancelado": um pedido que some da fila sem motivo registrado vira
+  //   discussão depois ("por que isso não foi feito?").
+  //
+  // Vale para qualquer pessoa — solicitante ou produção — para que toda volta
+  // e toda desistência no histórico tenham um motivo legível.
+  const EXIGEM_JUSTIFICATIVA: StatusSolicitacao[] = [
+    StatusSolicitacao.ajustes,
+    StatusSolicitacao.cancelado,
+  ];
   const observacaoBruta = typeof body.observacao === "string" ? body.observacao.trim() : "";
-  if (novoStatus === StatusSolicitacao.ajustes && !observacaoBruta) {
+  if (EXIGEM_JUSTIFICATIVA.includes(novoStatus) && !observacaoBruta) {
     return NextResponse.json(
-      { error: "Descreva quais ajustes são necessários." },
+      {
+        error:
+          novoStatus === StatusSolicitacao.cancelado
+            ? "Explique o motivo do cancelamento."
+            : "Descreva quais ajustes são necessários.",
+      },
       { status: 400 }
     );
   }
   if (observacaoBruta.length > OBSERVACAO_MAX) {
     return NextResponse.json(
-      { error: `A descrição dos ajustes deve ter no máximo ${OBSERVACAO_MAX} caracteres.` },
+      { error: `A justificativa deve ter no máximo ${OBSERVACAO_MAX} caracteres.` },
       { status: 400 }
     );
   }
   // Só guarda a observação onde ela significa algo; nas outras transições
   // viraria texto órfão que a linha do tempo nunca mostra.
-  const observacao = novoStatus === StatusSolicitacao.ajustes ? observacaoBruta : null;
+  const observacao = EXIGEM_JUSTIFICATIVA.includes(novoStatus) ? observacaoBruta : null;
 
   // Precisa do estado ANTERIOR para registrar a transição; sem ele o
   // histórico viraria uma lista de destinos sem origem, e não daria para
@@ -134,7 +149,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       // A descrição dos ajustes vai no corpo do card: é a informação de que a
       // equipe precisa para agir, e exigir que abram o sistema para lê-la
       // anularia metade do motivo de existir a notificação.
-      observacao ? `Ajustes pedidos: ${observacao}` : null
+      observacao
+        ? `${novoStatus === StatusSolicitacao.cancelado ? "Motivo do cancelamento" : "Ajustes pedidos"}: ${observacao}`
+        : null
     );
 
     return NextResponse.json({ ok: true, status: solicitacao.status });
