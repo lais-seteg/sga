@@ -96,6 +96,12 @@ export default function SolicitacoesClient({
   const [novaAberta, setNovaAberta] = useState(false);
   const [detalhe, setDetalhe] = useState<SolicitacaoLinha | null>(null);
   const [excluindo, setExcluindo] = useState<SolicitacaoLinha | null>(null);
+  /** Resposta do solicitante à aprovação, aguardando confirmação. Aprovar
+   *  encerra o pedido e pedir ajuste devolve trabalho para a equipe — os dois
+   *  merecem um passo a mais que um clique solto na tabela. */
+  const [respondendo, setRespondendo] = useState<
+    { solicitacao: SolicitacaoLinha; acao: "aprovar" | "ajustar" } | null
+  >(null);
   const [ocupado, setOcupado] = useState(false);
   const [toast, setToast] = useState<{ message: string; tone: ToastTone } | null>(null);
 
@@ -177,6 +183,16 @@ export default function SolicitacoesClient({
     }
   }
 
+  /** Resposta do solicitante: aprovar encerra o pedido, ajustar devolve à
+   *  equipe. Reaproveita `mudarStatus`, que já trata erro e recarrega. */
+  async function responderAprovacao() {
+    if (!respondendo) return;
+    const destino =
+      respondendo.acao === "aprovar" ? StatusSolicitacao.concluido : StatusSolicitacao.ajustes;
+    await mudarStatus(respondendo.solicitacao, destino);
+    setRespondendo(null);
+  }
+
   async function excluir() {
     if (!excluindo) return;
     setOcupado(true);
@@ -204,7 +220,7 @@ export default function SolicitacoesClient({
         subtitle={
           ehAdmin
             ? "Fila completa de produção — todas as solicitações da Seteg, de todos os setores."
-            : "Suas solicitações. Abra um novo pedido e acompanhe aqui o andamento de cada peça."
+            : "Suas solicitações. Quando uma peça ficar pronta, ela aparece aqui como Aguardando Aprovação para você aprovar ou pedir ajustes."
         }
         actions={
           <Btn icon="bi-plus-lg" onClick={() => setNovaAberta(true)}>
@@ -425,7 +441,7 @@ export default function SolicitacoesClient({
                             passo natural em destaque e o resto num menu. */}
                         <div style={{ display: "inline-flex", gap: 4 }}>
                           <BotaoAcao icone="bi-eye" titulo="Ver detalhes" onClick={() => setDetalhe(s)} />
-                          {ehAdmin && (
+                          {ehAdmin ? (
                             <>
                               <AcoesDeFila
                                 status={s.status}
@@ -440,6 +456,27 @@ export default function SolicitacoesClient({
                                 onClick={() => setExcluindo(s)}
                               />
                             </>
+                          ) : (
+                            // A peça voltou para quem pediu: é ele que aprova
+                            // ou manda ajustar. Fora deste estado o
+                            // solicitante só acompanha.
+                            s.status === StatusSolicitacao.aguardando_aprovacao && (
+                              <>
+                                <BotaoAcao
+                                  icone="bi-check2-circle"
+                                  titulo="Aprovar e finalizar"
+                                  destaque
+                                  disabled={ocupado}
+                                  onClick={() => setRespondendo({ solicitacao: s, acao: "aprovar" })}
+                                />
+                                <BotaoAcao
+                                  icone="bi-arrow-counterclockwise"
+                                  titulo="Solicitar ajustes"
+                                  disabled={ocupado}
+                                  onClick={() => setRespondendo({ solicitacao: s, acao: "ajustar" })}
+                                />
+                              </>
+                            )
                           )}
                         </div>
                       </td>
@@ -489,6 +526,48 @@ export default function SolicitacoesClient({
         footer={<Btn variant="secondary" onClick={() => setDetalhe(null)}>Fechar</Btn>}
       >
         {detalhe && <DetalheSolicitacao solicitacao={detalhe} />}
+      </CFModal>
+
+      <CFModal
+        open={respondendo !== null}
+        onClose={() => setRespondendo(null)}
+        title={respondendo?.acao === "aprovar" ? "Aprovar e finalizar" : "Solicitar ajustes"}
+        hint={respondendo ? `${respondendo.solicitacao.protocolo} · ${rotuloTipoMaterial(respondendo.solicitacao.tipoMaterial, respondendo.solicitacao.tipoMaterialOutro)}` : undefined}
+        icon={respondendo?.acao === "aprovar" ? "bi-check2-circle" : "bi-arrow-counterclockwise"}
+        iconColor={respondendo?.acao === "aprovar" ? "var(--green)" : "var(--blue)"}
+        width={480}
+        footer={
+          <>
+            <Btn variant="secondary" onClick={() => setRespondendo(null)} disabled={ocupado}>
+              Cancelar
+            </Btn>
+            <Btn
+              icon={respondendo?.acao === "aprovar" ? "bi-check-lg" : "bi-arrow-counterclockwise"}
+              onClick={responderAprovacao}
+              disabled={ocupado}
+            >
+              {ocupado
+                ? "Enviando..."
+                : respondendo?.acao === "aprovar"
+                  ? "Aprovar e finalizar"
+                  : "Solicitar ajustes"}
+            </Btn>
+          </>
+        }
+      >
+        <p style={{ fontSize: 13.5, color: "var(--text)", lineHeight: 1.6, margin: 0 }}>
+          {respondendo?.acao === "aprovar" ? (
+            <>
+              A peça será marcada como <strong>Finalizada</strong> e o pedido se encerra. A equipe
+              de produção é avisada.
+            </>
+          ) : (
+            <>
+              A peça volta para a equipe como <strong>Ajuste Pendente</strong>. Quando os ajustes
+              forem feitos, ela retorna aqui para a sua aprovação.
+            </>
+          )}
+        </p>
       </CFModal>
 
       <CFModal
@@ -595,12 +674,15 @@ function AcoesDeFila({
           <BotaoAcao
             key={destino}
             icone={STATUS_INFO[destino].icon}
+            // Quem decide aqui é o solicitante; a equipe só registra o que
+            // ele respondeu (por telefone, presencialmente, ou porque ele
+            // mesmo clicou na própria tela).
             titulo={
-              destino === StatusSolicitacao.aprovado
-                ? "Solicitante aprovou"
+              destino === StatusSolicitacao.concluido
+                ? "Solicitante aprovou — finalizar"
                 : "Solicitante pediu ajuste"
             }
-            destaque={destino === StatusSolicitacao.aprovado}
+            destaque={destino === StatusSolicitacao.concluido}
             disabled={ocupado}
             onClick={() => onMover(destino)}
           />

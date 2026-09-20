@@ -83,11 +83,38 @@ export const PROXIMO_STATUS: Partial<Record<StatusSolicitacao, StatusSolicitacao
   [StatusSolicitacao.aprovado]: StatusSolicitacao.concluido,
 };
 
-/** As duas saídas de "Aguardando Aprovação", que dependem do solicitante. */
+/**
+ * As duas saídas de "Aguardando Aprovação" — e quem decide é o SOLICITANTE,
+ * não a equipe de produção.
+ *
+ * Aprovar leva direto a Finalizado: para quem pediu a peça, "está boa" e
+ * "acabou" são a mesma coisa, e um passo intermediário só faria o pedido
+ * parecer pendente depois de resolvido. Pedir ajuste devolve a peça para a
+ * fila da equipe, e o ciclo recomeça em Em Andamento → Aguardando Aprovação.
+ */
 export const SAIDAS_APROVACAO: StatusSolicitacao[] = [
-  StatusSolicitacao.aprovado,
+  StatusSolicitacao.concluido,
   StatusSolicitacao.ajustes,
 ];
+
+/**
+ * O solicitante pode mover a PRÓPRIA peça, e só nesta situação: quando ela
+ * está aguardando a avaliação dele, para aprovar ou pedir ajuste.
+ *
+ * Esta função é a fonte única da regra — usada pela tela (para decidir quais
+ * botões mostrar) e pela rota de API (para decidir se aceita a mudança). Fora
+ * disso, mover a fila continua sendo da equipe de produção; do contrário um
+ * solicitante marcaria o próprio pedido como Finalizado sem ele existir.
+ */
+export function solicitantePodeMover(
+  statusAtual: StatusSolicitacao,
+  destino: StatusSolicitacao
+): boolean {
+  return (
+    statusAtual === StatusSolicitacao.aguardando_aprovacao &&
+    SAIDAS_APROVACAO.includes(destino)
+  );
+}
 
 /** Estados em que a peça já saiu das mãos da equipe de produção. */
 export const STATUS_FINAIS: StatusSolicitacao[] = [StatusSolicitacao.concluido];

@@ -4,24 +4,28 @@ import { prisma } from "@/lib/prisma";
 import { getUsuarioSessao } from "@/lib/session";
 import { registrarLog } from "@/lib/log";
 import { notificarTeams } from "@/lib/teams";
-import { isStatusValido, rotuloStatus } from "@/lib/statusSolicitacao";
+import { isStatusValido, rotuloStatus, solicitantePodeMover } from "@/lib/statusSolicitacao";
 import { rotuloTipoMaterial } from "@/lib/solicitacaoListas";
 
 export const dynamic = "force-dynamic";
 
 /**
- * PATCH /api/solicitacoes/[id] — muda o status. Exclusivo de admin.
+ * PATCH /api/solicitacoes/[id] — muda o status.
  *
- * Mover o status é operar a fila de produção: quem solicita acompanha, quem
- * produz é que decide em que estágio a peça está. Sem essa restrição, um
- * solicitante marcaria o próprio pedido como "Finalizado".
+ * Duas autorizações diferentes convivem aqui:
+ *
+ * - **Admin** move a fila livremente: é quem produz a peça e sabe em que
+ *   estágio ela está.
+ * - **O solicitante** move a PRÓPRIA peça, e só quando ela está aguardando a
+ *   avaliação dele — para aprovar (vai direto a Finalizado) ou pedir ajuste.
+ *   A regra vive em `solicitantePodeMover`, compartilhada com a tela.
+ *
+ * Sem esse recorte, um solicitante marcaria o próprio pedido como Finalizado
+ * sem ele nunca ter sido produzido.
  */
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const sessao = await getUsuarioSessao();
   if (!sessao) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (sessao.papel !== Papel.admin) {
-    return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
-  }
 
   let body: Record<string, unknown>;
   try {
@@ -37,14 +41,24 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
   // Precisa do estado ANTERIOR para registrar a transição; sem ele o
   // histórico viraria uma lista de destinos sem origem, e não daria para
-  // reconstruir quanto tempo a peça passou em cada etapa.
+  // reconstruir quanto tempo a peça passou em cada etapa. O `solicitanteId`
+  // vem junto porque a autorização abaixo depende dele.
   const antes = await prisma.solicitacao.findUnique({
     where: { id: params.id },
-    select: { status: true },
+    select: { status: true, solicitanteId: true },
   });
   if (!antes) {
     return NextResponse.json({ error: "Solicitação não encontrada." }, { status: 404 });
   }
+
+  const ehAdmin = sessao.papel === Papel.admin;
+  const ehDono = antes.solicitanteId === sessao.id;
+  if (!ehAdmin && !(ehDono && solicitantePodeMover(antes.status, novoStatus))) {
+    // Mesma resposta para "não é sua" e "não pode fazer isso agora":
+    // distinguir revelaria a existência de pedidos de outras pessoas.
+    return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+  }
+
   if (antes.status === novoStatus) {
     return NextResponse.json({ ok: true, status: novoStatus });
   }
